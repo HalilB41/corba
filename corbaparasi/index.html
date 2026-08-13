@@ -4,6 +4,9 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>ÇORBA PARASI BORSASI</title>
+<!-- Fişi görsel olarak indirebilmek için html2canvas kütüphanesi -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+
 <style>
   :root{
     --kagit: #f2ead9;
@@ -139,6 +142,39 @@
     letter-spacing:0.5px;
   }
 
+  /* --- Liderlik Tablosu --- */
+  .liderlik-kutu {
+    margin-top: 24px;
+    background: rgba(255, 255, 255, 0.45);
+    border: 1.5px dashed var(--kagit-koyu);
+    border-radius: 8px;
+    padding: 16px;
+    text-align: left;
+  }
+  .liderlik-kutu h3 {
+    margin: 0 0 12px;
+    font-size: 13px;
+    text-align: center;
+    color: var(--corba-koyu);
+    letter-spacing: 1px;
+  }
+  .liderlik-liste {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+    font-size: 12px;
+  }
+  .liderlik-liste li {
+    display: flex;
+    justify-content: space-between;
+    padding: 6px 0;
+    border-bottom: 1px dotted var(--gri);
+  }
+  .liderlik-liste li:last-child {
+    border-bottom: none;
+  }
+  .liderlik-liste b { color: var(--murekkep); }
+
   /* ---------- FORM ---------- */
   .form-kutu{
     background: var(--kagit);
@@ -190,6 +226,7 @@
     width:100%;
     color: var(--murekkep);
   }
+  .alan-ad input { font-size: 14px; }
   .btn-olustur{
     display:block;
     width:100%;
@@ -235,6 +272,45 @@
       4% 99%, 1% 100%, 0% 99%
     );
   }
+
+  /* Fiziksel Kâse Simülasyonu */
+  .fis-kase {
+    font-size: 48px;
+    text-align: center;
+    margin: 0 auto 10px;
+    display: block;
+    width: 60px;
+    height: 60px;
+    transition: transform 0.8s cubic-bezier(0.68, -0.55, 0.265, 1.55), filter 0.8s;
+  }
+  /* Dörtte bir oranda küçülerek ters devrilme (Zarar Durumu) */
+  .kase-devril {
+    transform: translateY(30px) rotate(180deg) scale(0.25);
+    filter: grayscale(80%);
+  }
+  /* Büyüyüp zıplama (Kâr Durumu) */
+  .kase-zipla {
+    animation: kaseSevinci 0.6s ease-out forwards;
+  }
+  @keyframes kaseSevinci {
+    0% { transform: scale(1); }
+    50% { transform: scale(1.3) translateY(-10px); }
+    100% { transform: scale(1.1) translateY(0); }
+  }
+
+  /* Para Yağmuru Efekti */
+  .para {
+    position: fixed;
+    font-size: 24px;
+    pointer-events: none;
+    z-index: 9999;
+    animation: paraDus 2.5s linear forwards;
+  }
+  @keyframes paraDus {
+    0% { transform: translateY(-50px) rotate(0deg); opacity: 1; }
+    100% { transform: translateY(100vh) rotate(360deg); opacity: 0; }
+  }
+
   .baslik-satir{ text-align:center; border-bottom: 2px dashed var(--murekkep); padding-bottom: 14px; margin-bottom: 14px; }
   .logo2{ font-size: 15px; letter-spacing: 3px; color: var(--corba-koyu); font-weight: 700; }
   .baslik2{ font-family: Georgia, serif; font-size: 28px; font-weight: 900; margin: 6px 0 2px; color: var(--corba); text-shadow: 1px 1px 0 rgba(0,0,0,0.08); }
@@ -263,13 +339,16 @@
   .rutbe-satir b{ color: var(--corba-koyu); }
   .barkod{ margin-top: 20px; height: 44px; background: repeating-linear-gradient(90deg, var(--murekkep) 0 2px, transparent 2px 5px, var(--murekkep) 5px 7px, transparent 7px 11px, var(--murekkep) 11px 12px, transparent 12px 17px); }
   .alt-not{ text-align:center; font-size: 10px; color: var(--gri); margin-top: 10px; letter-spacing: 1px; }
-  .damga{ position:absolute; top: 90px; right: 18px; border: 3px solid var(--kirmizi); color: var(--kirmizi); font-weight: 900; font-size: 12px; padding: 6px 9px; transform: rotate(12deg); border-radius: 6px; opacity: 0.85; letter-spacing: 1px; }
-  .aksiyon-satir{ display:flex; gap:8px; margin-top:14px; }
-  .btn-kucuk{ flex:1; padding: 11px; border:none; border-radius:4px; font-family:inherit; font-size:11.5px; letter-spacing:0.5px; cursor:pointer; }
+  .damga{ position:absolute; top: 110px; right: 18px; border: 3px solid var(--kirmizi); color: var(--kirmizi); font-weight: 900; font-size: 12px; padding: 6px 9px; transform: rotate(12deg); border-radius: 6px; opacity: 0.85; letter-spacing: 1px; }
+  
+  .aksiyon-satir{ display:flex; gap:8px; margin-top:18px; flex-wrap: wrap; }
+  .btn-kucuk{ flex:1 1 45%; padding: 11px; border:none; border-radius:4px; font-family:inherit; font-weight: 700; font-size:11.5px; letter-spacing:0.5px; cursor:pointer; }
   .btn-yenile2{ background: var(--murekkep); color: var(--kagit); }
   .btn-yenile2:hover{ background: var(--corba-koyu); }
   .btn-ses{ background: var(--kagit-koyu); color: var(--murekkep); }
   .btn-ses:hover{ background: #d8cba9; }
+  .btn-indir { background: #2f6b3a; color: white; flex-basis: 100%; margin-bottom: 5px; }
+  .btn-indir:hover { background: #1e4d27; }
 
   .gizli{ display:none !important; }
 </style>
@@ -289,12 +368,28 @@
     <p class="slogan">Halka arza girip ilk gün satan kahramanlar için<br>resmi kazanç fişi merkezi.<br>Kâr et, çorba al, tekrar aç kal.</p>
     <button class="btn-ana" id="btnBaslat">🍲 ÇORBA FİŞİ ÜRET</button>
     <div class="alt-uyari">*Yatırım tavsiyesi değildir. Tavsiye çorbadır.</div>
+    
+    <!-- LİDERLİK TABLOSU -->
+    <div class="liderlik-kutu">
+      <h3>🏆 GÜNÜN ÇORBACILARI</h3>
+      <ul class="liderlik-liste" id="liderListeUI">
+        <!-- Veriler JS ile buraya basılacak -->
+      </ul>
+    </div>
   </div>
 
   <!-- FORM -->
   <div class="form-kutu gizli" id="ekranForm">
     <h2>Halka Arz Bilgilerini Gir</h2>
     <div class="form-alt">Efsane trader, şimdi itiraf zamanı</div>
+
+    <div class="alan alan-ad">
+      <label>Trader Lakabın (Tablo için)</label>
+      <div class="girdi-sarma">
+        <span>@</span>
+        <input type="text" id="girisIsim" placeholder="ör. Kurt Trader" maxlength="15">
+      </div>
+    </div>
 
     <div class="alan">
       <label>Alınan tutar?</label>
@@ -318,6 +413,8 @@
 
   <!-- FİŞ -->
   <div class="fis gizli" id="ekranFis">
+    <!-- Simülasyon Kâsesi -->
+    <div class="fis-kase" id="dinamikKase">🍲</div>
     <div class="damga">GERÇEK YATIRIMCI DEĞİL</div>
 
     <div class="baslik-satir">
@@ -327,7 +424,7 @@
     </div>
 
     <div class="satir"><span class="label">Tarih</span><span id="tarih"></span></div>
-    <div class="satir"><span class="label">Yatırımcı</span><span>Efsane Trader™</span></div>
+    <div class="satir"><span class="label">Yatırımcı</span><span id="fisIsim">Efsane Trader™</span></div>
     <div class="satir"><span class="label">Strateji</span><span>Sabah al, akşam sat, tas al</span></div>
     <div class="satir"><span class="label">Yatırım ufku</span><span id="ufuk">~6 saat 40 dakika</span></div>
 
@@ -371,9 +468,10 @@
     <div class="barkod"></div>
     <div class="alt-not">BU FİŞ İADE EDİLEMEZ, SADECE KARDEŞ EDİLEBİLİR</div>
 
-    <div class="aksiyon-satir">
-      <button class="btn-kucuk btn-yenile2" id="btnYeniFis">YENİ ÇORBA FİŞİ ÜRET</button>
-      <button class="btn-kucuk btn-ses" id="btnSes">🔊 SESİ KAPAT</button>
+    <div class="aksiyon-satir" id="aksiyonButonlari">
+      <button class="btn-kucuk btn-indir" id="btnIndir">📸 FİŞİ İNDİR (PAYLAŞ)</button>
+      <button class="btn-kucuk btn-yenile2" id="btnYeniFis">YENİ FİŞ</button>
+      <button class="btn-kucuk btn-ses" id="btnSes">🔇 SESİ KAPAT</button>
     </div>
   </div>
 
@@ -399,6 +497,55 @@ function buharUret(){
   setTimeout(()=> b.remove(), 7500);
 }
 setInterval(buharUret, 700);
+
+/* ---------- Liderlik Tablosu Mantığı (Local & Gelecekteki Firebase Hazırlığı) ---------- */
+function tabloyuGuncelle() {
+  const liste = document.getElementById('liderListeUI');
+  const kayitlar = JSON.parse(localStorage.getItem('corbacilar')) || [];
+  
+  if (kayitlar.length === 0) {
+    liste.innerHTML = '<li>Henüz kimse çorba içmedi. İlk sen ol!</li>';
+    return;
+  }
+  
+  // En çok kazananlara göre sırala
+  kayitlar.sort((a, b) => b.net - a.net);
+  
+  liste.innerHTML = '';
+  // Sadece ilk 5'i göster
+  kayitlar.slice(0, 5).forEach((kayit, index) => {
+    let madalya = index === 0 ? '🥇' : index === 1 ? '🥈' : index === 2 ? '🥉' : '🍲';
+    let rankHtml = `<li><span>${madalya} ${kayit.isim}</span> <b>+₺${kayit.net.toLocaleString('tr-TR', {maximumFractionDigits:2})}</b></li>`;
+    liste.innerHTML += rankHtml;
+  });
+}
+
+function skoruKaydet(isim, net) {
+  if (net <= 0) return; // Zarar edenler tabloya girmez :)
+  let kayitlar = JSON.parse(localStorage.getItem('corbacilar')) || [];
+  kayitlar.push({ isim: isim || 'Efsane Trader', net: net, tarih: new Date().getTime() });
+  localStorage.setItem('corbacilar', JSON.stringify(kayitlar));
+  tabloyuGuncelle();
+}
+// Sayfa açıldığında tabloyu doldur
+tabloyuGuncelle();
+
+
+/* ---------- Para Yağmuru Simülasyonu ---------- */
+function paraYagdir() {
+  const semboller = ['🪙', '💵', '💰', '💸'];
+  for(let i=0; i<30; i++) {
+    setTimeout(() => {
+      const para = document.createElement('div');
+      para.className = 'para';
+      para.textContent = semboller[Math.floor(Math.random() * semboller.length)];
+      para.style.left = (Math.random() * 100) + 'vw';
+      para.style.animationDuration = (1.5 + Math.random() * 1.5) + 's';
+      document.body.appendChild(para);
+      setTimeout(() => para.remove(), 3000);
+    }, i * 100);
+  }
+}
 
 /* ---------- ekran geçişleri ---------- */
 const ekranAna = document.getElementById('ekranAna');
@@ -432,7 +579,6 @@ function hurultuCal(){
   if(!sesAcik || !audioCtx) return;
   const now = audioCtx.currentTime;
 
-  // gürültü tabanlı "hoplama" sesi
   const bufferSize = audioCtx.sampleRate * 0.35;
   const buffer = audioCtx.createBuffer(1, bufferSize, audioCtx.sampleRate);
   const data = buffer.getChannelData(0);
@@ -460,7 +606,6 @@ function hurultuCal(){
   noise.start(now);
   noise.stop(now + 0.38);
 
-  // hafif kaşık tınlaması
   const osc = audioCtx.createOscillator();
   osc.type = 'sine';
   osc.frequency.setValueAtTime(1500, now + 0.34);
@@ -495,30 +640,10 @@ function bugununTarihi(){
   return d.toLocaleDateString('tr-TR', { day:'2-digit', month:'2-digit', year:'numeric' }) + ' ' + d.toLocaleTimeString('tr-TR', {hour:'2-digit', minute:'2-digit'});
 }
 
-/* Ortalama Esnaf Çorba Fiyatları — aralığın ortası alındı */
 const corbaGruplari = [
-  {
-    esikNet: 300,
-    secenekler: [
-      {ad:'Mercimek', fiyat:145},
-      {ad:'Ezogelin', fiyat:145}
-    ]
-  },
-  {
-    esikNet: 800,
-    secenekler: [
-      {ad:'Yayla', fiyat:180},
-      {ad:'Tavuk Suyu', fiyat:180}
-    ]
-  },
-  {
-    esikNet: Infinity,
-    secenekler: [
-      {ad:'İşkembe', fiyat:230},
-      {ad:'Kelle Paça', fiyat:230},
-      {ad:'Beyran', fiyat:230}
-    ]
-  }
+  { esikNet: 300, secenekler: [{ad:'Mercimek', fiyat:145}, {ad:'Ezogelin', fiyat:145}] },
+  { esikNet: 800, secenekler: [{ad:'Yayla', fiyat:180}, {ad:'Tavuk Suyu', fiyat:180}] },
+  { esikNet: Infinity, secenekler: [{ad:'İşkembe', fiyat:230}, {ad:'Kelle Paça', fiyat:230}, {ad:'Beyran', fiyat:230}] }
 ];
 
 function corbaSec(net){
@@ -529,12 +654,13 @@ function corbaSec(net){
 const sureler = ['3 dakika 40 saniye', '11 dakika', '47 saniye (rekor)', '2 saat (sabırlı gün)', '6 dakika 5 saniye', '58 saniye'];
 const ufuklar = ['~6 saat 40 dakika', '~2 saat 15 dakika', '~47 saniye (paniğe kapıldı)', '~1 iş günü (dayanıklı)', '~11 dakika (elleri titredi)'];
 
-function fisOlustur(alis, satis){
+function fisOlustur(isim, alis, satis){
   const net = satis - alis;
   const corba = corbaSec(net);
   const sure = sureler[Math.floor(Math.random()*sureler.length)];
   const ufuk = ufuklar[Math.floor(Math.random()*ufuklar.length)];
 
+  document.getElementById('fisIsim').textContent = isim || 'Efsane Trader™';
   document.getElementById('tarih').textContent = bugununTarihi();
   document.getElementById('ufuk').textContent = ufuk;
   document.getElementById('alisGoster').textContent = `-₺${alis.toLocaleString('tr-TR', {maximumFractionDigits:2})}`;
@@ -548,16 +674,28 @@ function fisOlustur(alis, satis){
   const netDeger = document.getElementById('netDeger');
   const netAciklama = document.getElementById('netAciklama');
   const netEtiket = document.getElementById('netEtiket');
+  
+  // Fiziksel Kâse Sınıflarını Temizle
+  const dinamikKase = document.getElementById('dinamikKase');
+  dinamikKase.className = 'fis-kase';
 
   if(net >= 0){
     const kacTas = Math.max(1, Math.floor(net / corba.fiyat));
     netEtiket.textContent = 'NET KAZANÇ';
     netDeger.textContent = `₺${net.toLocaleString('tr-TR', {maximumFractionDigits:2})}`;
     netAciklama.textContent = `${kacTas} tas ${corba.ad.toLowerCase()} çorbası + tuzlu galeta + gurur`;
+    
+    // Animasyonlar ve Tablo Kaydı
+    dinamikKase.classList.add('kase-zipla');
+    paraYagdir();
+    skoruKaydet(isim, net);
   } else {
     netEtiket.textContent = 'NET SONUÇ (ZARAR)';
     netDeger.textContent = `-₺${Math.abs(net).toLocaleString('tr-TR', {maximumFractionDigits:2})}`;
     netAciklama.textContent = `0 tas çorba, sadece galeta ve pişmanlık kaldı`;
+    
+    // Zararda kâseyi devirip küçült
+    dinamikKase.classList.add('kase-devril');
   }
 
   document.getElementById('rtHiz').textContent = sure;
@@ -568,6 +706,7 @@ function fisOlustur(alis, satis){
 }
 
 document.getElementById('btnOlustur').onclick = () => {
+  const isimVal = document.getElementById('girisIsim').value;
   const alisVal = parseFloat(document.getElementById('girisAlis').value);
   const satisVal = parseFloat(document.getElementById('girisSatis').value);
 
@@ -575,7 +714,7 @@ document.getElementById('btnOlustur').onclick = () => {
     alert('Aga rakamları düzgün gir, çorba parası şaka değil.');
     return;
   }
-  fisOlustur(alisVal, satisVal);
+  fisOlustur(isimVal, alisVal, satisVal);
 };
 
 document.getElementById('btnYeniFis').onclick = () => {
@@ -583,6 +722,28 @@ document.getElementById('btnYeniFis').onclick = () => {
   document.getElementById('girisAlis').value = '';
   document.getElementById('girisSatis').value = '';
   ekranGoster(ekranForm);
+};
+
+/* ---------- html2canvas ile Fişi İndirme ---------- */
+document.getElementById('btnIndir').onclick = function() {
+  const aksiyonAlani = document.getElementById('aksiyonButonlari');
+  
+  // Fişin resmini çekerken alt butonları gizleyelim ki resimde çıkmasın
+  aksiyonAlani.style.display = 'none';
+  
+  html2canvas(document.getElementById('ekranFis'), {
+    backgroundColor: '#f2ead9',
+    scale: 2 // Çözünürlüğü yüksek tutmak için
+  }).then(canvas => {
+    // Butonları geri getir
+    aksiyonAlani.style.display = 'flex';
+    
+    // Resmi indir
+    const link = document.createElement('a');
+    link.download = 'corba_fisi.png';
+    link.href = canvas.toDataURL('image/png');
+    link.click();
+  });
 };
 </script>
 
