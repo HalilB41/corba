@@ -4,8 +4,17 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>ÇORBA PARASI BORSASI</title>
+<script>
+  // /admin yolunda ana ekranın bir anlığına görünmesini (flash) önler
+  if(/\/admin\/?$/.test(window.location.pathname)){
+    document.documentElement.classList.add('admin-route');
+  }
+</script>
 <!-- Fişi görsel olarak indirebilmek için html2canvas kütüphanesi -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+<!-- Firebase (Firestore) - admin şifresi, çorbalar, halka arzlar ve liderlik tablosu buradan yönetilir -->
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
 
 <style>
   :root{
@@ -83,6 +92,7 @@
     box-shadow: 0 20px 50px rgba(0,0,0,0.35), 0 0 0 1px rgba(0,0,0,0.05);
     padding: 46px 28px;
     text-align:center;
+    position:relative;
   }
   .kapak .kase{
     font-size: 64px;
@@ -351,6 +361,97 @@
   .btn-indir:hover { background: #1e4d27; }
 
   .gizli{ display:none !important; }
+  .admin-route #ekranAna{ display:none !important; }
+
+  /* --- Hesap durumu çubuğu (ana sayfa sağ üst) --- */
+  .hesap-bari{
+    position:absolute; top:14px; right:14px; display:flex; gap:6px; z-index:2;
+  }
+  .btn-hesap{
+    background: rgba(0,0,0,0.07); border:none; border-radius:20px; padding:7px 12px;
+    font-family:inherit; font-size:10.5px; font-weight:700; color:var(--murekkep); cursor:pointer;
+    white-space:nowrap;
+  }
+  .btn-hesap.btn-panel{ background: var(--corba); color:#fff; }
+  .link-geri{
+    display:inline-block; margin-bottom:10px; font-size:11.5px; color:var(--gri);
+    cursor:pointer; text-decoration:underline;
+  }
+
+  /* --- Halka arz seçimi & süre seçici (form) --- */
+  .alan select{
+    border:none; background:transparent; outline:none; font-family:inherit;
+    font-size:14px; padding:8px 0; width:100%; color:var(--murekkep);
+  }
+  .btn-sure-sec{
+    display:block; width:100%; text-align:left; padding:12px;
+    background: rgba(255,255,255,0.55); border:1.5px dashed var(--gri);
+    border-radius:6px; font-family:inherit; font-size:12.5px; color:var(--murekkep);
+    cursor:pointer;
+  }
+  .btn-sure-sec b{ color:var(--corba-koyu); }
+  .sure-panel{
+    margin-top:8px; display:flex; gap:8px; align-items:center;
+    background: rgba(255,255,255,0.55); border:1.5px dashed var(--gri);
+    border-radius:6px; padding:10px;
+  }
+  .sure-panel input[type=number]{
+    width:70px; padding:8px; border:1px solid var(--kagit-koyu); border-radius:4px;
+    font-family:inherit; font-size:14px; background:#fff;
+  }
+  .sure-panel select{
+    flex:1; padding:8px; border:1px solid var(--kagit-koyu); border-radius:4px;
+    font-family:inherit; font-size:13px; background:#fff;
+  }
+  .sure-panel button{
+    padding:8px 12px; border:none; border-radius:4px; background:var(--murekkep);
+    color:var(--kagit); font-family:inherit; font-weight:700; font-size:11.5px; cursor:pointer;
+  }
+
+  /* --- ADMİN PANEL --- */
+  .admin-kutu{
+    background: var(--kagit); border-radius:10px;
+    box-shadow: 0 20px 50px rgba(0,0,0,0.35), 0 0 0 1px rgba(0,0,0,0.05);
+    padding: 28px 24px;
+  }
+  .admin-kutu h2{ font-family:Georgia,serif; font-size:20px; color:var(--corba); margin:0 0 4px; text-align:center; }
+  .admin-kutu .admin-alt{ text-align:center; font-size:11px; color:var(--gri); margin-bottom:20px; }
+  .admin-hata{ color:var(--kirmizi); font-size:12px; text-align:center; margin-top:8px; min-height:14px; }
+  .admin-bolum{ margin-top:24px; padding-top:16px; border-top:2px dashed var(--kagit-koyu); }
+  .admin-bolum h3{ font-size:13px; letter-spacing:1px; color:var(--corba-koyu); margin:0 0 10px; }
+  .admin-liste{ list-style:none; padding:0; margin:0 0 12px; font-size:12px; }
+  .admin-liste li{
+    display:flex; justify-content:space-between; align-items:center;
+    padding:8px 6px; border-bottom:1px dotted var(--gri); gap:8px;
+  }
+  .admin-liste li span.ad{ flex:1; }
+  .admin-sil{
+    background:var(--kirmizi); color:#fff; border:none; border-radius:4px;
+    padding:5px 9px; font-family:inherit; font-size:11px; cursor:pointer; flex-shrink:0;
+  }
+  .admin-ekle-form{ display:flex; flex-wrap:wrap; gap:6px; margin-top:8px; }
+  .admin-ekle-form input, .admin-ekle-form select{
+    padding:9px; border:1px solid var(--kagit-koyu); border-radius:4px;
+    font-family:inherit; font-size:12.5px; background:#fff; flex:1 1 100px;
+  }
+  .admin-ekle-form label.check{
+    display:flex; align-items:center; gap:4px; font-size:11px; color:var(--gri); flex:1 1 100%;
+  }
+  .btn-admin-ekle{
+    width:100%; margin-top:8px; padding:10px; background:var(--yesil); color:#fff;
+    border:none; border-radius:6px; font-family:inherit; font-weight:700; font-size:12px; cursor:pointer;
+  }
+  .btn-admin-cikis{
+    width:100%; margin-top:22px; padding:12px; background:var(--murekkep); color:var(--kagit);
+    border:none; border-radius:6px; font-family:inherit; font-weight:700; font-size:12px;
+    letter-spacing:1px; cursor:pointer;
+  }
+  .btn-admin-sifirla{
+    width:100%; padding:12px; background:var(--kirmizi); color:#fff; border:none;
+    border-radius:6px; font-family:inherit; font-weight:700; font-size:12px; cursor:pointer;
+  }
+  .admin-not{ font-size:10.5px; color:var(--gri); margin-top:6px; line-height:1.5; }
+  .admin-yukleniyor{ text-align:center; font-size:12px; color:var(--gri); padding:20px; }
 </style>
 </head>
 <body>
@@ -362,6 +463,10 @@
 
   <!-- ANA SAYFA -->
   <div class="kapak" id="ekranAna">
+    <div class="hesap-bari" id="hesapBari">
+      <button class="btn-hesap btn-panel gizli" id="btnPanelGit">⚙️ Panel</button>
+      <button class="btn-hesap" id="btnGirisDurum">🔑 Giriş Yap</button>
+    </div>
     <div class="kase">🍲</div>
     <div class="logo">☎ 0850 ÇORBA PARA</div>
     <h1>ÇORBA PARASI BORSASI</h1>
@@ -369,11 +474,11 @@
     <button class="btn-ana" id="btnBaslat">🍲 ÇORBA FİŞİ ÜRET</button>
     <div class="alt-uyari">*Yatırım tavsiyesi değildir. Tavsiye çorbadır.</div>
     
-    <!-- LİDERLİK TABLOSU -->
+    <!-- LİDERLİK TABLOSU (haftalık, en az kârdan en çok kâra sıralı) -->
     <div class="liderlik-kutu">
-      <h3>🏆 GÜNÜN ÇORBACILARI</h3>
+      <h3>🏆 HAFTANIN ÇORBACILARI</h3>
       <ul class="liderlik-liste" id="liderListeUI">
-        <!-- Veriler JS ile buraya basılacak -->
+        <li class="admin-yukleniyor">Yükleniyor...</li>
       </ul>
     </div>
   </div>
@@ -387,7 +492,7 @@
       <label>Trader Lakabın (Tablo için)</label>
       <div class="girdi-sarma">
         <span>@</span>
-        <input type="text" id="girisIsim" placeholder="ör. Kurt Trader" maxlength="15">
+        <input type="text" id="girisIsim" placeholder="ör. Kurt Trader" maxlength="20">
       </div>
     </div>
 
@@ -404,6 +509,30 @@
       <div class="girdi-sarma">
         <span>₺</span>
         <input type="number" id="girisSatis" placeholder="ör. 2618" min="0" step="0.01">
+      </div>
+    </div>
+
+    <div class="alan">
+      <label>Hangi halka arz?</label>
+      <div class="girdi-sarma">
+        <select id="girisHalkaArz">
+          <option value="">Yükleniyor...</option>
+        </select>
+      </div>
+    </div>
+
+    <div class="alan">
+      <label>En büyük çorbacı yarışı</label>
+      <button type="button" class="btn-sure-sec" id="btnSureSec">⏱️ Ne zaman sattın? <b id="sureSecEtiket">(seçilmedi, opsiyonel)</b></button>
+      <div class="sure-panel gizli" id="sureSecPanel">
+        <input type="number" id="sureSayi" min="1" value="1">
+        <select id="sureBirim">
+          <option value="saniye">saniye</option>
+          <option value="dakika" selected>dakika</option>
+          <option value="saat">saat</option>
+          <option value="gun">gün</option>
+        </select>
+        <button type="button" id="btnSureOnayla">Onayla</button>
       </div>
     </div>
 
@@ -425,6 +554,7 @@
 
     <div class="satir"><span class="label">Tarih</span><span id="tarih"></span></div>
     <div class="satir"><span class="label">Yatırımcı</span><span id="fisIsim">Efsane Trader™</span></div>
+    <div class="satir"><span class="label">Halka Arz</span><span id="fisHalkaArz">—</span></div>
     <div class="satir"><span class="label">Strateji</span><span>Sabah al, akşam sat, tas al</span></div>
     <div class="satir"><span class="label">Yatırım ufku</span><span id="ufuk">~6 saat 40 dakika</span></div>
 
@@ -459,10 +589,8 @@
 
     <div class="bolum-baslik">ÇORBA ENDEKSİ ŞEREF TABLOSU</div>
     <div class="rutbe-tablo">
-      <div class="rutbe-satir"><span>🥇 En hızlı satan</span><b id="rtHiz">4 dakika 12 saniye</b></div>
+      <div class="rutbe-satir gizli" id="rtHizSatir"><span>⏱️ Ne zaman sattın?</span><b id="rtHiz"></b></div>
       <div class="rutbe-satir"><span>🍜 Alınan çorba</span><b id="rtCorba">Mercimek, 45₺</b></div>
-      <div class="rutbe-satir"><span>📉 "Tuttum" dediği ama tutmadığı hisse</span><b>3 adet</b></div>
-      <div class="rutbe-satir"><span>🧂 Toplam ömür boyu galeta hakkı</span><b>Sınırsız (onur üyeliği)</b></div>
     </div>
 
     <div class="barkod"></div>
@@ -475,7 +603,94 @@
     </div>
   </div>
 
+  <!-- GİRİŞ / KAYIT (ana sayfadaki "Giriş Yap" butonundan açılır) -->
+  <div class="admin-kutu gizli" id="ekranAdminGiris">
+    <div class="link-geri" id="linkAnaSayfayaDon">‹ Ana sayfaya dön</div>
+
+    <!-- GİRİŞ FORMU -->
+    <div id="girisGoster">
+      <div style="text-align:center;font-size:40px;margin-bottom:6px;">🔐</div>
+      <h2>GİRİŞ YAP</h2>
+      <div class="admin-alt">ÇORBA PARASI BORSASI · hesabına giriş yap</div>
+      <div class="alan">
+        <label>Kullanıcı adı</label>
+        <div class="girdi-sarma"><input type="text" id="girisKullanici" autocomplete="username" maxlength="20"></div>
+      </div>
+      <div class="alan">
+        <label>Şifre</label>
+        <div class="girdi-sarma"><input type="password" id="girisSifre" autocomplete="current-password"></div>
+      </div>
+      <button class="btn-olustur" id="btnGirisYap">GİRİŞ YAP</button>
+      <div class="admin-hata" id="girisHata"></div>
+      <div class="geri-link" id="linkKayitGoster">Hesabın yok mu? Kayıt ol ›</div>
+    </div>
+
+    <!-- KAYIT FORMU -->
+    <div id="kayitGoster" class="gizli">
+      <div style="text-align:center;font-size:40px;margin-bottom:6px;">📝</div>
+      <h2>KAYIT OL</h2>
+      <div class="admin-alt">Kullanıcı adı "admin" ile kayıt olursan yönetici olursun 👑</div>
+      <div class="alan">
+        <label>Kullanıcı adı</label>
+        <div class="girdi-sarma"><input type="text" id="kayitKullanici" autocomplete="username" maxlength="20"></div>
+      </div>
+      <div class="alan">
+        <label>Şifre</label>
+        <div class="girdi-sarma"><input type="password" id="kayitSifre" autocomplete="new-password"></div>
+      </div>
+      <div class="alan">
+        <label>Şifre (tekrar)</label>
+        <div class="girdi-sarma"><input type="password" id="kayitSifreTekrar" autocomplete="new-password"></div>
+      </div>
+      <button class="btn-olustur" id="btnKayitOl">KAYIT OL</button>
+      <div class="admin-hata" id="kayitHata"></div>
+      <div class="geri-link" id="linkGirisGoster">Zaten hesabın var mı? Giriş yap ›</div>
+    </div>
+  </div>
+
+
+  <!-- ADMİN PANEL -->
+  <div class="admin-kutu gizli" id="ekranAdminPanel">
+    <h2>YÖNETİM PANELİ</h2>
+    <div class="admin-alt" id="adminHosgeldin">hoş geldin, admin 🍲</div>
+
+    <!-- Çorbalar -->
+    <div class="admin-bolum">
+      <h3>🍜 ÇORBALAR</h3>
+      <ul class="admin-liste" id="adminCorbaListe"><li class="admin-yukleniyor">Yükleniyor...</li></ul>
+      <div class="admin-ekle-form">
+        <input type="text" id="yeniCorbaAd" placeholder="Çorba adı (ör. Domates)">
+        <input type="number" id="yeniCorbaFiyat" placeholder="Fiyat ₺" min="0" step="0.01">
+        <input type="number" id="yeniCorbaEsik" placeholder="Eşik net kâr (₺)" min="0" step="1">
+        <label class="check"><input type="checkbox" id="yeniCorbaSonsuz"> En üst dilim (eşiği yok say)</label>
+      </div>
+      <button class="btn-admin-ekle" id="btnCorbaEkle">+ ÇORBA EKLE</button>
+      <div class="admin-not">Not: Bir tutar, "net kâr < eşik" olan en düşük eşikli dilime düşer. En üst dilim kutucuğu işaretlenirse eşik uygulanmaz.</div>
+    </div>
+
+    <!-- Halka Arzlar -->
+    <div class="admin-bolum">
+      <h3>📈 HALKA ARZLAR (HİSSELER)</h3>
+      <ul class="admin-liste" id="adminHalkaArzListe"><li class="admin-yukleniyor">Yükleniyor...</li></ul>
+      <div class="admin-ekle-form">
+        <input type="text" id="yeniHalkaArz" placeholder="Halka arz / hisse adı (ör. Tarhana A.Ş.)">
+      </div>
+      <button class="btn-admin-ekle" id="btnHalkaArzEkle">+ HALKA ARZ EKLE</button>
+    </div>
+
+    <!-- Liderlik Tablosu -->
+    <div class="admin-bolum">
+      <h3>🏆 LİDERLİK TABLOSU</h3>
+      <div class="admin-not" id="adminHaftaBilgi">Bu haftanın kaydı: —</div>
+      <button class="btn-admin-sifirla" id="btnHaftaSifirla" style="margin-top:10px;">HAFTAYI ŞİMDİ SIFIRLA</button>
+      <div class="admin-not">Normalde tablo her hafta otomatik sıfırlanır (hafta numarasına göre). Bu buton tüm geçmiş kayıtları kalıcı olarak siler.</div>
+    </div>
+
+    <button class="btn-admin-cikis" id="btnAdminCikis">ÇIKIŞ YAP</button>
+  </div>
+
 </div>
+
 
 <script>
 /* ---------- arka plan çorba deseni ---------- */
@@ -483,6 +698,66 @@
   const desen = document.getElementById('corbaDesen');
   desen.textContent = ('🍲 '.repeat(40) + '\n').repeat(20);
 })();
+
+/* =========================================================
+   FIREBASE (Firestore) KURULUMU
+   ---------------------------------------------------------
+   AŞAĞIDAKİ firebaseConfig DEĞERLERİNİ KENDİ FIREBASE
+   PROJENİZLE DEĞİŞTİRİN. (Firebase Console > Proje Ayarları
+   > Genel > "Web uygulaması" altında bulabilirsiniz)
+   ========================================================= */
+const firebaseConfig = {
+  apiKey: "AIzaSyA_f83ZV3XeqkQP2iFX7xzgZ-ULkeDCZw0",
+  authDomain: "corbaci-b9fc4.firebaseapp.com",
+  projectId: "corbaci-b9fc4",
+  storageBucket: "corbaci-b9fc4.firebasestorage.app",
+  messagingSenderId: "117815500346",
+  appId: "1:117815500346:web:9230b12d21b0bae1ed9f03"
+};
+firebase.initializeApp(firebaseConfig);
+const db = firebase.firestore();
+
+/* Varsayılan veriler: koleksiyonlar boşsa ilk açılışta otomatik oluşturulur */
+const VARSAYILAN_CORBALAR = [
+  { ad: 'Mercimek',   fiyat: 145, esikNet: 300 },
+  { ad: 'Ezogelin',   fiyat: 145, esikNet: 300 },
+  { ad: 'Yayla',      fiyat: 180, esikNet: 800 },
+  { ad: 'Tavuk Suyu', fiyat: 180, esikNet: 800 },
+  { ad: 'İşkembe',    fiyat: 230, esikNet: 999999999 },
+  { ad: 'Kelle Paça', fiyat: 230, esikNet: 999999999 },
+  { ad: 'Beyran',     fiyat: 230, esikNet: 999999999 }
+];
+const VARSAYILAN_HALKA_ARZLAR = ['Mercimek A.Ş.', 'Ezogelin Holding', 'Tarhana Grup', 'Yayla Yatırım', 'İşkembe Ventures'];
+
+/* Kullanıcılar artık admin/halil0980 gibi sabit kodlanmış değil.
+   Herkes /admin ekranından kendi kullanıcı adı + şifresiyle kayıt olur;
+   kullanıcı adı olarak "admin" seçen kişi otomatik yönetici olur.
+   Kayıtlar Firestore'daki "kullanicilar" koleksiyonunda tutulur. */
+
+async function ilkKurulumuYap(){
+  const corbaRef = db.collection('ayarlar').doc('corbalar');
+  const corbaSnap = await corbaRef.get();
+  if(!corbaSnap.exists) await corbaRef.set({ liste: VARSAYILAN_CORBALAR });
+
+  const haRef = db.collection('ayarlar').doc('halkaArzlar');
+  const haSnap = await haRef.get();
+  if(!haSnap.exists) await haRef.set({ liste: VARSAYILAN_HALKA_ARZLAR });
+}
+
+/* Haftanın kimliği (ISO hafta): tablo bu kimliğe göre otomatik haftalık sıfırlanmış olur */
+function haftaIdHesapla(tarih){
+  const d = tarih ? new Date(tarih) : new Date();
+  const gun = new Date(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()));
+  gun.setUTCDate(gun.getUTCDate() + 4 - (gun.getUTCDay() || 7));
+  const yilBaslangic = new Date(Date.UTC(gun.getUTCFullYear(), 0, 1));
+  const haftaNo = Math.ceil((((gun - yilBaslangic) / 86400000) + 1) / 7);
+  return `${gun.getUTCFullYear()}-W${String(haftaNo).padStart(2,'0')}`;
+}
+const suankiHaftaId = haftaIdHesapla();
+
+/* ---------- /admin yolu tespiti ---------- */
+const ADMIN_YOLUNDA = /\/admin\/?$/.test(window.location.pathname);
+
 
 /* buhar parçacıkları */
 function buharUret(){
@@ -498,37 +773,81 @@ function buharUret(){
 }
 setInterval(buharUret, 700);
 
-/* ---------- Liderlik Tablosu Mantığı (Local & Gelecekteki Firebase Hazırlığı) ---------- */
-function tabloyuGuncelle() {
-  const liste = document.getElementById('liderListeUI');
-  const kayitlar = JSON.parse(localStorage.getItem('corbacilar')) || [];
-  
-  if (kayitlar.length === 0) {
-    liste.innerHTML = '<li>Henüz kimse çorba içmedi. İlk sen ol!</li>';
-    return;
-  }
-  
-  // En çok kazananlara göre sırala
-  kayitlar.sort((a, b) => b.net - a.net);
-  
-  liste.innerHTML = '';
-  // Sadece ilk 5'i göster
-  kayitlar.slice(0, 5).forEach((kayit, index) => {
-    let madalya = index === 0 ? '🥇' : index === 1 ? '🥈' : index === 2 ? '🥉' : '🍲';
-    let rankHtml = `<li><span>${madalya} ${kayit.isim}</span> <b>+₺${kayit.net.toLocaleString('tr-TR', {maximumFractionDigits:2})}</b></li>`;
-    liste.innerHTML += rankHtml;
-  });
+/* ---------- Liderlik Tablosu Mantığı (Firestore, haftalık otomatik sıfırlanır) ----------
+   Sıralama en az kârdan en çok kâra doğrudur (en az kâr = 1. sıra).
+   Zararda olanlar tabloya hiç girmez. 1. sıradaki kişi "EN BÜYÜK ÇORBACI"
+   unvanını alır. Kişi "ne zaman sattın?" bilgisini girdiyse süre de gösterilir. */
+function sureMetneCevir(saniye){
+  if(saniye < 60) return `${saniye} saniye`;
+  if(saniye < 3600) return `${Math.floor(saniye/60)} dakika ${saniye%60} saniye`;
+  if(saniye < 86400) return `${Math.floor(saniye/3600)} saat ${Math.floor((saniye%3600)/60)} dakika`;
+  return `${Math.floor(saniye/86400)} gün ${Math.floor((saniye%86400)/3600)} saat`;
 }
 
-function skoruKaydet(isim, net) {
-  if (net <= 0) return; // Zarar edenler tabloya girmez :)
-  let kayitlar = JSON.parse(localStorage.getItem('corbacilar')) || [];
-  kayitlar.push({ isim: isim || 'Efsane Trader', net: net, tarih: new Date().getTime() });
-  localStorage.setItem('corbacilar', JSON.stringify(kayitlar));
-  tabloyuGuncelle();
+async function tabloyuGuncelle() {
+  const liste = document.getElementById('liderListeUI');
+  try{
+    const snap = await db.collection('corbacilar')
+      .where('haftaId', '==', suankiHaftaId)
+      .orderBy('net', 'asc')
+      .limit(5)
+      .get();
+
+    if (snap.empty) {
+      liste.innerHTML = '<li>Henüz kimse çorba içmedi. İlk sen ol!</li>';
+      return;
+    }
+
+    liste.innerHTML = '';
+    let index = 0;
+    snap.forEach(doc => {
+      const kayit = doc.data();
+      const isimGuvenli = escapeHtml(kayit.isim || 'Efsane Trader');
+      const corbaAdi = escapeHtml((kayit.corbaAdi || 'çorba').toLowerCase());
+      const birim = kayit.corbaBirim || 1;
+      const netMetin = `₺${(kayit.net || 0).toLocaleString('tr-TR', {maximumFractionDigits:2})}`;
+      const sureVarMi = kayit.satisSuresiSaniye && kayit.satisSuresiSaniye > 0;
+      const sureMetin = sureVarMi ? ` · ${sureMetneCevir(kayit.satisSuresiSaniye)}de sattı` : '';
+
+      if(index === 0){
+        liste.innerHTML += `<li><span>👑 ${isimGuvenli} — EN BÜYÜK ÇORBACI</span> <b>${birim} ${corbaAdi} çorbacı<br><small style="font-weight:400;color:var(--gri)">${netMetin} kâr${sureMetin}</small></b></li>`;
+      } else {
+        const madalya = index === 1 ? '🥈' : index === 2 ? '🥉' : '🍲';
+        liste.innerHTML += `<li><span>${madalya} ${isimGuvenli}</span> <b>${birim} ${corbaAdi} çorbacı<br><small style="font-weight:400;color:var(--gri)">${netMetin} kâr${sureMetin}</small></b></li>`;
+      }
+      index++;
+    });
+  } catch(e){
+    console.error('Liderlik tablosu yüklenemedi:', e);
+    liste.innerHTML = '<li>Tablo yüklenemedi, Firebase ayarlarını kontrol et.</li>';
+  }
 }
-// Sayfa açıldığında tabloyu doldur
-tabloyuGuncelle();
+
+async function skoruKaydet(kayit) {
+  if (kayit.net <= 0) return; // Zarar edenler tabloya girmez :)
+  try{
+    await db.collection('corbacilar').add({
+      isim: kayit.isim || 'Efsane Trader',
+      net: kayit.net,
+      corbaAdi: kayit.corbaAdi,
+      corbaBirim: kayit.corbaBirim,
+      halkaArz: kayit.halkaArz || null,
+      satisSuresiSaniye: kayit.satisSuresiSaniye || null,
+      haftaId: suankiHaftaId,
+      tarih: firebase.firestore.FieldValue.serverTimestamp()
+    });
+    tabloyuGuncelle();
+  } catch(e){
+    console.error('Skor kaydedilemedi:', e);
+  }
+}
+
+// Sayfa açıldığında tabloyu doldur (admin rotasında değilsek)
+if(!ADMIN_YOLUNDA){
+  ilkKurulumuYap().then(() => {
+    tabloyuGuncelle();
+  });
+}
 
 
 /* ---------- Para Yağmuru Simülasyonu ---------- */
@@ -559,6 +878,8 @@ function ekranGoster(el){
 
 document.getElementById('btnBaslat').onclick = () => {
   sesBaslat();
+  corbaListesiYukle();
+  halkaArzListesiYukle();
   ekranGoster(ekranForm);
 };
 document.getElementById('linkGeriAna').onclick = () => ekranGoster(ekranAna);
@@ -640,36 +961,82 @@ function bugununTarihi(){
   return d.toLocaleDateString('tr-TR', { day:'2-digit', month:'2-digit', year:'numeric' }) + ' ' + d.toLocaleTimeString('tr-TR', {hour:'2-digit', minute:'2-digit'});
 }
 
-const corbaGruplari = [
-  { esikNet: 300, secenekler: [{ad:'Mercimek', fiyat:145}, {ad:'Ezogelin', fiyat:145}] },
-  { esikNet: 800, secenekler: [{ad:'Yayla', fiyat:180}, {ad:'Tavuk Suyu', fiyat:180}] },
-  { esikNet: Infinity, secenekler: [{ad:'İşkembe', fiyat:230}, {ad:'Kelle Paça', fiyat:230}, {ad:'Beyran', fiyat:230}] }
-];
+/* Çorbalar artık admin panelinden yönetiliyor ve Firestore'da tutuluyor */
+let corbaListesi = [];
+
+async function corbaListesiYukle(){
+  try{
+    const snap = await db.collection('ayarlar').doc('corbalar').get();
+    corbaListesi = (snap.exists && snap.data().liste) ? snap.data().liste : VARSAYILAN_CORBALAR;
+  } catch(e){
+    console.error('Çorba listesi yüklenemedi:', e);
+    corbaListesi = VARSAYILAN_CORBALAR;
+  }
+}
 
 function corbaSec(net){
-  const grup = corbaGruplari.find(g => net < g.esikNet) || corbaGruplari[corbaGruplari.length-1];
-  const secenekler = grup.secenekler;
-  return secenekler[Math.floor(Math.random()*secenekler.length)];
+  if(!corbaListesi || corbaListesi.length === 0) return { ad:'Mercimek', fiyat:145 };
+  const siraliListe = [...corbaListesi].sort((a,b) => a.esikNet - b.esikNet);
+  let secili = siraliListe.find(c => net < c.esikNet);
+  if(!secili) secili = siraliListe[siraliListe.length - 1];
+  const ayniDilim = siraliListe.filter(c => c.esikNet === secili.esikNet);
+  return ayniDilim[Math.floor(Math.random() * ayniDilim.length)];
 }
-const sureler = ['3 dakika 40 saniye', '11 dakika', '47 saniye (rekor)', '2 saat (sabırlı gün)', '6 dakika 5 saniye', '58 saniye'];
+
+/* Halka arz listesini forma bas */
+let halkaArzListesi = [];
+async function halkaArzListesiYukle(){
+  try{
+    const snap = await db.collection('ayarlar').doc('halkaArzlar').get();
+    halkaArzListesi = (snap.exists && snap.data().liste) ? snap.data().liste : VARSAYILAN_HALKA_ARZLAR;
+  } catch(e){
+    console.error('Halka arz listesi yüklenemedi:', e);
+    halkaArzListesi = VARSAYILAN_HALKA_ARZLAR;
+  }
+  const secim = document.getElementById('girisHalkaArz');
+  if(secim){
+    secim.innerHTML = halkaArzListesi.map(h => `<option value="${h}">${h}</option>`).join('');
+  }
+}
+
+/* ---------- "Ne zaman sattın?" süre seçici ---------- */
+let secilenSureSaniye = 0;
+const carpanlar = { saniye: 1, dakika: 60, saat: 3600, gun: 86400 };
+
+document.getElementById('btnSureSec').onclick = () => {
+  document.getElementById('sureSecPanel').classList.toggle('gizli');
+};
+document.getElementById('btnSureOnayla').onclick = () => {
+  const sayi = parseFloat(document.getElementById('sureSayi').value) || 0;
+  const birim = document.getElementById('sureBirim').value;
+  secilenSureSaniye = Math.round(sayi * carpanlar[birim]);
+  document.getElementById('sureSecEtiket').textContent = secilenSureSaniye > 0
+    ? `(${sureMetneCevir(secilenSureSaniye)})`
+    : '(seçilmedi, opsiyonel)';
+  document.getElementById('sureSecPanel').classList.add('gizli');
+};
 const ufuklar = ['~6 saat 40 dakika', '~2 saat 15 dakika', '~47 saniye (paniğe kapıldı)', '~1 iş günü (dayanıklı)', '~11 dakika (elleri titredi)'];
 
-function fisOlustur(isim, alis, satis){
+function fisOlustur(isim, alis, satis, halkaArz){
   const net = satis - alis;
   const corba = corbaSec(net);
-  const sure = sureler[Math.floor(Math.random()*sureler.length)];
   const ufuk = ufuklar[Math.floor(Math.random()*ufuklar.length)];
+  const gercekSureVar = secilenSureSaniye && secilenSureSaniye > 0;
+  const gercekSureMetin = gercekSureVar ? sureMetneCevir(secilenSureSaniye) : null;
 
   document.getElementById('fisIsim').textContent = isim || 'Efsane Trader™';
   document.getElementById('tarih').textContent = bugununTarihi();
   document.getElementById('ufuk').textContent = ufuk;
   document.getElementById('alisGoster').textContent = `-₺${alis.toLocaleString('tr-TR', {maximumFractionDigits:2})}`;
+  document.getElementById('fisHalkaArz').textContent = halkaArz || '—';
 
   const satisEl = document.getElementById('satisGoster');
   satisEl.textContent = `+₺${satis.toLocaleString('tr-TR', {maximumFractionDigits:2})}`;
   satisEl.className = net >= 0 ? 'kar' : 'zarar';
 
-  document.getElementById('sureGoster').textContent = `10:04 · süre: ${sure}`;
+  document.getElementById('sureGoster').textContent = gercekSureVar
+    ? `10:04 · süre: ${gercekSureMetin}`
+    : `10:04`;
 
   const netDeger = document.getElementById('netDeger');
   const netAciklama = document.getElementById('netAciklama');
@@ -688,7 +1055,14 @@ function fisOlustur(isim, alis, satis){
     // Animasyonlar ve Tablo Kaydı
     dinamikKase.classList.add('kase-zipla');
     paraYagdir();
-    skoruKaydet(isim, net);
+    skoruKaydet({
+      isim: isim,
+      net: net,
+      corbaAdi: corba.ad,
+      corbaBirim: kacTas,
+      halkaArz: halkaArz,
+      satisSuresiSaniye: secilenSureSaniye
+    });
   } else {
     netEtiket.textContent = 'NET SONUÇ (ZARAR)';
     netDeger.textContent = `-₺${Math.abs(net).toLocaleString('tr-TR', {maximumFractionDigits:2})}`;
@@ -698,7 +1072,14 @@ function fisOlustur(isim, alis, satis){
     dinamikKase.classList.add('kase-devril');
   }
 
-  document.getElementById('rtHiz').textContent = sure;
+  // "Ne zaman sattın?" gerçekten girildiyse göster, girilmediyse satırı gizle
+  const rtHizSatir = document.getElementById('rtHizSatir');
+  if(gercekSureVar){
+    document.getElementById('rtHiz').textContent = gercekSureMetin;
+    rtHizSatir.classList.remove('gizli');
+  } else {
+    rtHizSatir.classList.add('gizli');
+  }
   document.getElementById('rtCorba').textContent = `${corba.ad}, ${corba.fiyat}₺`;
 
   ekranGoster(ekranFis);
@@ -706,21 +1087,32 @@ function fisOlustur(isim, alis, satis){
 }
 
 document.getElementById('btnOlustur').onclick = () => {
-  const isimVal = document.getElementById('girisIsim').value;
+  const isimVal = document.getElementById('girisIsim').value.trim();
   const alisVal = parseFloat(document.getElementById('girisAlis').value);
   const satisVal = parseFloat(document.getElementById('girisSatis').value);
+  const halkaArzVal = document.getElementById('girisHalkaArz').value;
 
+  // Güvenlik: lakap alanına link/görsel adresi/HTML yazılamaz, en fazla 20 karakter
+  if(isimVal && !/^[a-zA-Z0-9çÇğĞıİöÖşŞüÜ _-]{1,20}$/.test(isimVal)){
+    alert('Trader lakabı sadece harf, rakam, boşluk, - ve _ içerebilir (link/görsel adresi yazamazsın), en fazla 20 karakter.');
+    return;
+  }
   if(isNaN(alisVal) || isNaN(satisVal) || alisVal < 0 || satisVal < 0){
     alert('Aga rakamları düzgün gir, çorba parası şaka değil.');
     return;
   }
-  fisOlustur(isimVal, alisVal, satisVal);
+  fisOlustur(isimVal, alisVal, satisVal, halkaArzVal);
 };
 
 document.getElementById('btnYeniFis').onclick = () => {
   hurultuDonguDurdur();
   document.getElementById('girisAlis').value = '';
   document.getElementById('girisSatis').value = '';
+  secilenSureSaniye = 0;
+  document.getElementById('sureSecEtiket').textContent = '(seçilmedi, opsiyonel)';
+  document.getElementById('sureSecPanel').classList.add('gizli');
+  corbaListesiYukle();
+  halkaArzListesiYukle();
   ekranGoster(ekranForm);
 };
 
@@ -745,6 +1137,333 @@ document.getElementById('btnIndir').onclick = function() {
     link.click();
   });
 };
+
+/* =========================================================
+   KULLANICI GİRİŞİ / KAYIT SİSTEMİ
+   ---------------------------------------------------------
+   Kullanıcılar Firestore'daki "kullanicilar" koleksiyonunda
+   tutulur (doküman ID = küçük harfli kullanıcı adı, böylece
+   aynı kullanıcı adı iki kişiye verilemez). Kullanıcı adı
+   "admin" olan hesap otomatik yönetici olur.
+   Şifreler düz metin değil, SHA-256 özeti (hash) olarak
+   saklanır. Kullanıcı adı sadece harf/rakam/alt çizgi
+   içerebilir (link, görsel adresi, HTML/script yazılamaz) ve
+   en fazla 20 karakterdir. Not: gerçek/kurumsal bir güvenlik
+   ihtiyacı için Firebase Authentication kullanılması önerilir;
+   bu basit hash sadece "şifre veritabanında açık yazmasın"
+   isteğini karşılar.
+   ========================================================= */
+async function sha256Hex(metin){
+  const veri = new TextEncoder().encode('corba-tuzu-' + metin); // basit "tuzlama"
+  const hashBuffer = await crypto.subtle.digest('SHA-256', veri);
+  return Array.from(new Uint8Array(hashBuffer)).map(b => b.toString(16).padStart(2,'0')).join('');
+}
+
+function kullaniciAdiNormallestir(ad){
+  return (ad || '').trim().toLowerCase();
+}
+
+/* Basit HTML kaçışlama: kullanıcıdan gelen hiçbir metin innerHTML'e
+   çiğ olarak basılmaz (görsel linki / <img> / <script> vb. XSS denemelerine karşı) */
+function escapeHtml(metin){
+  return String(metin ?? '').replace(/[&<>"']/g, (c) => ({
+    '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;'
+  }[c]));
+}
+
+const ekranAdminGiris = document.getElementById('ekranAdminGiris');
+const ekranAdminPanel = document.getElementById('ekranAdminPanel');
+const girisGoster = document.getElementById('girisGoster');
+const kayitGoster = document.getElementById('kayitGoster');
+const btnGirisDurum = document.getElementById('btnGirisDurum');
+const btnPanelGit = document.getElementById('btnPanelGit');
+
+function adminEkranGoster(el){
+  [ekranAna, ekranForm, ekranFis, ekranAdminGiris, ekranAdminPanel].forEach(e => e && e.classList.add('gizli'));
+  el.classList.remove('gizli');
+}
+
+document.getElementById('linkKayitGoster').onclick = () => {
+  girisGoster.classList.add('gizli');
+  kayitGoster.classList.remove('gizli');
+};
+document.getElementById('linkGirisGoster').onclick = () => {
+  kayitGoster.classList.add('gizli');
+  girisGoster.classList.remove('gizli');
+};
+document.getElementById('linkAnaSayfayaDon').onclick = () => {
+  adminEkranGoster(ekranAna);
+};
+
+/* ---- Kayıt Ol ---- */
+async function kayitOl(){
+  const hata = document.getElementById('kayitHata');
+  hata.style.color = 'var(--kirmizi)';
+  hata.textContent = '';
+
+  const kullaniciGorunen = document.getElementById('kayitKullanici').value.trim();
+  const kullaniciId = kullaniciAdiNormallestir(kullaniciGorunen);
+  const sifre = document.getElementById('kayitSifre').value;
+  const sifreTekrar = document.getElementById('kayitSifreTekrar').value;
+
+  if(!/^[a-zA-Z0-9_]{3,20}$/.test(kullaniciId)){
+    hata.textContent = 'Kullanıcı adı 3-20 karakter olmalı, sadece harf/rakam/alt çizgi içerebilir (link/görsel adresi yazamazsın).';
+    return;
+  }
+  if(sifre.length < 4){
+    hata.textContent = 'Şifre en az 4 karakter olmalı.';
+    return;
+  }
+  if(sifre !== sifreTekrar){
+    hata.textContent = 'Şifreler birbiriyle uyuşmuyor.';
+    return;
+  }
+
+  try{
+    const ref = db.collection('kullanicilar').doc(kullaniciId);
+    const snap = await ref.get();
+    if(snap.exists){
+      hata.textContent = 'Bu kullanıcı adı zaten alınmış, başka bir tane dene.';
+      return;
+    }
+    const sifreHash = await sha256Hex(sifre);
+    const adminMi = (kullaniciId === 'admin');
+    await ref.set({
+      kullaniciAdi: kullaniciGorunen,
+      sifreHash: sifreHash,
+      admin: adminMi,
+      olusturulmaTarihi: firebase.firestore.FieldValue.serverTimestamp()
+    });
+
+    hata.style.color = 'var(--yesil)';
+    hata.textContent = 'Kayıt başarılı! Giriş yapılıyor...';
+    oturumKaydet({ kullaniciAdi: kullaniciGorunen, admin: adminMi });
+
+    setTimeout(() => {
+      if(adminMi){
+        window.location.href = '/admin';
+      } else {
+        hesapBariYenile();
+        adminEkranGoster(ekranAna);
+      }
+    }, 400);
+  } catch(e){
+    console.error(e);
+    hata.textContent = 'Firebase bağlantı hatası. Ayarları kontrol et.';
+  }
+}
+document.getElementById('btnKayitOl').onclick = kayitOl;
+
+/* ---- Giriş Yap ---- */
+async function girisYap(){
+  const hata = document.getElementById('girisHata');
+  hata.textContent = '';
+
+  const kullaniciGirilen = document.getElementById('girisKullanici').value.trim();
+  const kullaniciId = kullaniciAdiNormallestir(kullaniciGirilen);
+  const sifre = document.getElementById('girisSifre').value;
+
+  if(!kullaniciId || !sifre){
+    hata.textContent = 'Kullanıcı adı ve şifre gir.';
+    return;
+  }
+
+  try{
+    const ref = db.collection('kullanicilar').doc(kullaniciId);
+    const snap = await ref.get();
+    if(!snap.exists){
+      hata.textContent = 'Böyle bir kullanıcı bulunamadı.';
+      return;
+    }
+    const veri = snap.data();
+    const girilenHash = await sha256Hex(sifre);
+    if(girilenHash !== veri.sifreHash){
+      hata.textContent = 'Şifre yanlış.';
+      return;
+    }
+    oturumKaydet({ kullaniciAdi: veri.kullaniciAdi, admin: !!veri.admin });
+    if(veri.admin){
+      window.location.href = '/admin';
+    } else {
+      hesapBariYenile();
+      adminEkranGoster(ekranAna);
+    }
+  } catch(e){
+    console.error(e);
+    hata.textContent = 'Firebase bağlantı hatası. Ayarları kontrol et.';
+  }
+}
+document.getElementById('btnGirisYap').onclick = girisYap;
+document.getElementById('girisSifre').addEventListener('keydown', (e) => { if(e.key === 'Enter') girisYap(); });
+document.getElementById('kayitSifreTekrar').addEventListener('keydown', (e) => { if(e.key === 'Enter') kayitOl(); });
+
+/* ---- Oturum yönetimi (sessionStorage) ---- */
+function oturumKaydet(oturum){
+  sessionStorage.setItem('corbaOturum', JSON.stringify(oturum));
+}
+function oturumGetir(){
+  try{ return JSON.parse(sessionStorage.getItem('corbaOturum')); } catch(e){ return null; }
+}
+function oturumSil(){
+  sessionStorage.removeItem('corbaOturum');
+}
+
+/* ---- Ana sayfa sağ üst hesap çubuğu ---- */
+function hesapBariYenile(){
+  const oturum = oturumGetir();
+  if(oturum){
+    btnGirisDurum.textContent = `Çıkış Yap (@${oturum.kullaniciAdi})`;
+    if(oturum.admin) btnPanelGit.classList.remove('gizli'); else btnPanelGit.classList.add('gizli');
+  } else {
+    btnGirisDurum.textContent = '🔑 Giriş Yap';
+    btnPanelGit.classList.add('gizli');
+  }
+}
+btnGirisDurum.onclick = () => {
+  const oturum = oturumGetir();
+  if(oturum){
+    if(confirm('Çıkış yapmak istediğine emin misin?')){
+      oturumSil();
+      hesapBariYenile();
+    }
+  } else {
+    girisGoster.classList.remove('gizli');
+    kayitGoster.classList.add('gizli');
+    document.getElementById('girisHata').textContent = '';
+    document.getElementById('kayitHata').textContent = '';
+    adminEkranGoster(ekranAdminGiris);
+  }
+};
+btnPanelGit.onclick = () => { window.location.href = '/admin'; };
+
+document.getElementById('btnAdminCikis').onclick = () => {
+  oturumSil();
+  window.location.href = '/';
+};
+
+async function adminPaneliAc(){
+  const oturum = oturumGetir();
+  document.getElementById('adminHosgeldin').textContent = `hoş geldin, @${(oturum && oturum.kullaniciAdi) || 'admin'} 👑`;
+  adminEkranGoster(ekranAdminPanel);
+  await Promise.all([adminCorbalariGoster(), adminHalkaArzlariGoster(), adminHaftaBilgiGoster()]);
+}
+
+/* ---- Çorba yönetimi ---- */
+async function corbalariGetir(){
+  const ref = db.collection('ayarlar').doc('corbalar');
+  const snap = await ref.get();
+  return { ref, liste: (snap.exists && snap.data().liste) ? snap.data().liste : [] };
+}
+
+async function adminCorbalariGoster(){
+  const ul = document.getElementById('adminCorbaListe');
+  const { liste } = await corbalariGetir();
+  if(liste.length === 0){ ul.innerHTML = '<li>Henüz çorba yok.</li>'; return; }
+  ul.innerHTML = liste.map((c, i) => {
+    const esikMetin = c.esikNet >= 999999999 ? 'en üst dilim' : `eşik: ₺${c.esikNet}`;
+    return `<li><span class="ad">${c.ad} — ₺${c.fiyat} <small style="color:var(--gri)">(${esikMetin})</small></span><button class="admin-sil" data-i="${i}">SİL</button></li>`;
+  }).join('');
+  ul.querySelectorAll('.admin-sil').forEach(btn => {
+    btn.onclick = async () => {
+      const { ref, liste } = await corbalariGetir();
+      liste.splice(parseInt(btn.dataset.i), 1);
+      await ref.set({ liste });
+      adminCorbalariGoster();
+    };
+  });
+}
+
+document.getElementById('btnCorbaEkle').onclick = async () => {
+  const ad = document.getElementById('yeniCorbaAd').value.trim();
+  const fiyat = parseFloat(document.getElementById('yeniCorbaFiyat').value);
+  const sonsuz = document.getElementById('yeniCorbaSonsuz').checked;
+  const esik = sonsuz ? 999999999 : parseFloat(document.getElementById('yeniCorbaEsik').value);
+  if(!ad || isNaN(fiyat) || fiyat < 0 || (!sonsuz && (isNaN(esik) || esik < 0))){
+    alert('Çorba adı, fiyat ve eşik değerini düzgün gir.');
+    return;
+  }
+  const { ref, liste } = await corbalariGetir();
+  liste.push({ ad, fiyat, esikNet: esik });
+  await ref.set({ liste });
+  document.getElementById('yeniCorbaAd').value = '';
+  document.getElementById('yeniCorbaFiyat').value = '';
+  document.getElementById('yeniCorbaEsik').value = '';
+  document.getElementById('yeniCorbaSonsuz').checked = false;
+  adminCorbalariGoster();
+};
+
+/* ---- Halka arz yönetimi ---- */
+async function halkaArzlariGetir(){
+  const ref = db.collection('ayarlar').doc('halkaArzlar');
+  const snap = await ref.get();
+  return { ref, liste: (snap.exists && snap.data().liste) ? snap.data().liste : [] };
+}
+
+async function adminHalkaArzlariGoster(){
+  const ul = document.getElementById('adminHalkaArzListe');
+  const { liste } = await halkaArzlariGetir();
+  if(liste.length === 0){ ul.innerHTML = '<li>Henüz halka arz yok.</li>'; return; }
+  ul.innerHTML = liste.map((h, i) => `<li><span class="ad">${h}</span><button class="admin-sil" data-i="${i}">SİL</button></li>`).join('');
+  ul.querySelectorAll('.admin-sil').forEach(btn => {
+    btn.onclick = async () => {
+      const { ref, liste } = await halkaArzlariGetir();
+      liste.splice(parseInt(btn.dataset.i), 1);
+      await ref.set({ liste });
+      adminHalkaArzlariGoster();
+    };
+  });
+}
+
+document.getElementById('btnHalkaArzEkle').onclick = async () => {
+  const isim = document.getElementById('yeniHalkaArz').value.trim();
+  if(!isim){ alert('Halka arz adı boş olamaz.'); return; }
+  const { ref, liste } = await halkaArzlariGetir();
+  liste.push(isim);
+  await ref.set({ liste });
+  document.getElementById('yeniHalkaArz').value = '';
+  adminHalkaArzlariGoster();
+};
+
+/* ---- Liderlik tablosu / haftalık sıfırlama ---- */
+async function adminHaftaBilgiGoster(){
+  const bilgi = document.getElementById('adminHaftaBilgi');
+  try{
+    const snap = await db.collection('corbacilar').where('haftaId', '==', suankiHaftaId).get();
+    bilgi.textContent = `Bu haftanın kaydı (${suankiHaftaId}): ${snap.size} fiş`;
+  } catch(e){
+    bilgi.textContent = 'Kayıt bilgisi alınamadı.';
+  }
+}
+
+document.getElementById('btnHaftaSifirla').onclick = async () => {
+  if(!confirm('Tüm liderlik tablosu geçmişi kalıcı olarak silinecek. Emin misin?')) return;
+  try{
+    const snap = await db.collection('corbacilar').get();
+    const silmeler = [];
+    snap.forEach(doc => silmeler.push(doc.ref.delete()));
+    await Promise.all(silmeler);
+    alert('Liderlik tablosu sıfırlandı.');
+    adminHaftaBilgiGoster();
+  } catch(e){
+    console.error(e);
+    alert('Sıfırlama sırasında hata oluştu.');
+  }
+};
+
+/* ---- /admin rotası açılışta kontrol ----
+   Yalnızca ZATEN "admin" olarak giriş yapmış kişi paneli görür.
+   Giriş yapmamış ya da admin olmayan biri /admin yazarsa hiçbir
+   admin ekranı göstermeden direkt ana sayfaya yönlendirilir. */
+if(ADMIN_YOLUNDA){
+  const oturum = oturumGetir();
+  if(oturum && oturum.admin){
+    ilkKurulumuYap().then(() => adminPaneliAc());
+  } else {
+    window.location.href = '/';
+  }
+} else {
+  hesapBariYenile();
+}
 </script>
 
 </body>
