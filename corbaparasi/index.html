@@ -9,6 +9,7 @@
 <!-- Firebase (Firestore) - kullanıcılar, çorbalar, halka arzlar, liderlik tablosu, sohbet ve özel mesajlar buradan yönetilir -->
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
 
 <style>
   :root{
@@ -605,7 +606,6 @@
     font-family:inherit; font-size:10.5px; font-weight:700; color:var(--murekkep); cursor:pointer;
   }
   .profil-sekme-btn.aktif{ background:var(--corba); color:#fff; }
-  .profil-sekme-icerik{ display:block; }
   .odul-karti{
     background: linear-gradient(135deg, var(--corba), var(--corba-koyu)); color:#fff; border-radius:8px;
     padding:14px; margin-bottom:10px; position:relative; overflow:hidden;
@@ -928,6 +928,8 @@
 
     <div style="margin-top:20px;">
       <b style="font-size:11.5px;color:var(--murekkep);">🏆 Ödül Paneli (haftalık kazananlar)</b>
+      <div class="admin-not">Güvenlik nedeniyle bu artık otomatik olmuyor: bu haftanın liderini ödül listesine işlemek için butona bas.</div>
+      <button class="btn-admin-ekle" id="btnHaftaOduluHesapla" style="margin-top:6px;">🏆 BU HAFTANIN ÖDÜLÜNÜ HESAPLA</button>
       <ul class="admin-liste" id="adminOdulListe" style="margin-top:8px;"><li class="admin-yukleniyor">Yükleniyor...</li></ul>
       <div class="sayfalama-satir">
         <button id="btnOdulOnceki" disabled>‹ Önceki</button>
@@ -1076,6 +1078,20 @@ const firebaseConfig = {
 };
 firebase.initializeApp(firebaseConfig);
 const db = firebase.firestore();
+const auth = firebase.auth();
+auth.setPersistence(firebase.auth.Auth.Persistence.SESSION).catch(e => console.error('Oturum kalıcılığı ayarlanamadı:', e));
+
+/* Kullanıcı adı + şifre girişini artık GERÇEK Firebase Authentication üzerinden yürütüyoruz.
+   Kullanıcı sadece kullanıcı adını görür; arka planda o ada göre üretilen "sahte" bir e-posta
+   adresiyle bir Firebase Auth hesabı açılıyor/giriş yapılıyor. Böylece "bu isteği gerçekten bu
+   kişi mi yapıyor" sorusunu artık Firestore GÜVENLİK KURALLARI gerçekten doğrulayabiliyor
+   (request.auth üzerinden) — tarayıcı konsolundan admin taklidi yapmak artık işe yaramıyor. */
+function sahteEposta(kullaniciId){
+  return kullaniciId + '@corbaparasi-hesap.app';
+}
+function kullaniciIdDenEposta(eposta){
+  return (eposta || '').split('@')[0];
+}
 
 /* Varsayılan veriler: koleksiyonlar boşsa ilk açılışta otomatik oluşturulur */
 const VARSAYILAN_CORBALAR = [
@@ -1185,11 +1201,9 @@ async function tabloyuGuncelle() {
       }
       index++;
     });
-
-    // Haftanın lideri kayıtlı bir hesapsa, ödül profiline otomatik işlensin (idempotent)
-    if(ilkKayit && ilkKayit.kayitli && ilkKayit.kullaniciId){
-      haftaninOduluGuncelle(ilkKayit).catch(e => console.error('Ödül güncellenemedi:', e));
-    }
+    // Not: haftanın ödülü artık burada OTOMATİK atanmıyor — bunu sadece admin,
+    // yönetim panelindeki "Bu Haftanın Ödülünü Hesapla" butonuyla tetikleyebiliyor
+    // (güvenlik kuralları da sadece admin oturumundan gelen bu yazmaya izin veriyor).
   } catch(e){
     console.error('Liderlik tablosu yüklenemedi:', e);
     liste.innerHTML = '<li>Tablo yüklenemedi, Firebase ayarlarını kontrol et.</li>';
@@ -1222,6 +1236,33 @@ async function haftaninOduluGuncelle(kazanan){
       }
     }
   }, { merge: true });
+}
+
+/* Admin panelindeki "Bu Haftanın Ödülünü Hesapla" butonu bunu çağırır.
+   Güvenlik: bu yazma işlemi Firestore kurallarında SADECE admin oturumuna izin
+   veriliyor, bu yüzden sıradan bir ziyaretçinin tarayıcısı bu işlemi yapamaz. */
+async function adminHaftaninOduluHesaplaVeAta(){
+  const oturum = oturumGetir();
+  if(!oturum || !oturum.admin) return;
+  try{
+    const snap = await db.collection('corbacilar')
+      .where('haftaId', '==', suankiHaftaId)
+      .orderBy('net', 'asc')
+      .limit(1)
+      .get();
+    if(snap.empty){ alert('Bu hafta henüz kimse fiş üretmemiş.'); return; }
+    const kazanan = snap.docs[0].data();
+    if(!kazanan.kayitli || !kazanan.kullaniciId){
+      alert(`Bu haftanın lideri (@${kazanan.isim}) kayıtlı bir hesap değil, ödül bir hesaba işlenemez.`);
+      return;
+    }
+    await haftaninOduluGuncelle(kazanan);
+    alert(`Ödül @${kazanan.isim} kullanıcısına işlendi.`);
+    odulSayfaSifirlaVeYukle();
+  } catch(e){
+    console.error('Ödül hesaplanamadı:', e);
+    alert('Ödül hesaplanırken bir hata oluştu.');
+  }
 }
 
 async function skoruKaydet(kayit) {
@@ -1637,7 +1678,7 @@ btnIletisimTwitter.onclick = () => iletisimTipiniAyarla('twitter');
 function epostaGecerliMi(v){ return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v); }
 function twitterGecerliMi(v){ return /^@?[a-zA-Z0-9_]{1,15}$/.test(v); }
 
-/* ---- Kayıt Ol ---- */
+/* ---- Kayıt Ol (gerçek Firebase Authentication hesabı açar) ---- */
 async function kayitOl(){
   const hata = document.getElementById('kayitHata');
   hata.style.color = 'var(--kirmizi)';
@@ -1684,9 +1725,10 @@ async function kayitOl(){
       hata.textContent = 'Bu kullanıcı adı zaten alınmış, başka bir tane dene.';
       return;
     }
-    const sifreHash = await sha256Hex(sifre);
+    const kimlikBilgisi = await auth.createUserWithEmailAndPassword(sahteEposta(kullaniciId), sifre);
     const adminMi = (kullaniciId === 'admin');
     await ref.set({
+      uid: kimlikBilgisi.user.uid,
       kullaniciAdi: kullaniciGorunen,
       admin: adminMi,
       iletisimTipi: secilenIletisimTipi,
@@ -1696,24 +1738,25 @@ async function kayitOl(){
       odulller: {},
       olusturulmaTarihi: firebase.firestore.FieldValue.serverTimestamp()
     });
-    await ref.collection('gizli').doc('veri').set({ sifreHash });
 
     hata.style.color = 'var(--yesil)';
     hata.textContent = 'Kayıt başarılı! Giriş yapılıyor...';
-    oturumKaydet({ kullaniciAdi: kullaniciGorunen, admin: adminMi });
-
-    setTimeout(() => {
-      hesapBariYenile();
-      ekranGoster(ekranAna);
-    }, 400);
+    await oturumYenile(kimlikBilgisi.user); // doküman az önce yazıldı, oturumu hemen doğru bilgiyle tazele
+    setTimeout(() => ekranGoster(ekranAna), 400);
   } catch(e){
     console.error(e);
-    hata.textContent = 'Firebase bağlantı hatası. Ayarları kontrol et.';
+    if(e.code === 'auth/email-already-in-use'){
+      hata.textContent = 'Bu kullanıcı adı zaten alınmış, başka bir tane dene.';
+    } else if(e.code === 'auth/weak-password'){
+      hata.textContent = 'Şifre çok zayıf, daha güçlü bir şifre dene.';
+    } else {
+      hata.textContent = 'Kayıt olurken bir hata oluştu. Ayarları kontrol et.';
+    }
   }
 }
 document.getElementById('btnKayitOl').onclick = kayitOl;
 
-/* ---- Giriş Yap (sadece kullanıcı adı + şifre) ---- */
+/* ---- Giriş Yap (sadece kullanıcı adı + şifre, artık gerçek Firebase Authentication üzerinden) ---- */
 async function girisYap(){
   const hata = document.getElementById('girisHata');
   hata.textContent = '';
@@ -1728,6 +1771,20 @@ async function girisYap(){
   }
 
   try{
+    const kimlikBilgisi = await auth.signInWithEmailAndPassword(sahteEposta(kullaniciId), sifre);
+    await oturumYenile(kimlikBilgisi.user);
+    ekranGoster(ekranAna);
+    return;
+  } catch(e){
+    if(e.code !== 'auth/user-not-found'){
+      hata.textContent = 'Kullanıcı adı veya şifre yanlış.';
+      return;
+    }
+    // Bu hesap henüz Firebase Authentication'a göçmemiş olabilir (eski usül hesap).
+    // Eski şifre özetiyle kontrol edip doğruysa hesabı sessizce yeni sisteme taşıyoruz.
+  }
+
+  try{
     const ref = db.collection('kullanicilar').doc(kullaniciId);
     const snap = await ref.get();
     if(!snap.exists){
@@ -1739,44 +1796,88 @@ async function girisYap(){
 
     let dogruHash = null;
     const gizliSnap = await ref.collection('gizli').doc('veri').get();
-    if(gizliSnap.exists){
-      dogruHash = gizliSnap.data().sifreHash;
-    } else if(veri.sifreHash){
-      // Eski hesap: hash hâlâ ana dokümanda. Kontrol ettikten sonra yeni yere taşı.
-      dogruHash = veri.sifreHash;
-    }
+    if(gizliSnap.exists) dogruHash = gizliSnap.data().sifreHash;
+    else if(veri.sifreHash) dogruHash = veri.sifreHash;
 
     if(!dogruHash || girilenHash !== dogruHash){
-      hata.textContent = 'Şifre yanlış.';
+      hata.textContent = 'Kullanıcı adı veya şifre yanlış.';
       return;
     }
 
-    if(!gizliSnap.exists && veri.sifreHash){
-      // sessizce yeni (daha güvenli) konuma taşı
-      ref.collection('gizli').doc('veri').set({ sifreHash: veri.sifreHash }).catch(()=>{});
-    }
-
-    oturumKaydet({ kullaniciAdi: veri.kullaniciAdi, admin: !!veri.admin });
-    hesapBariYenile();
+    // Şifre doğru: eski hesabı gerçek Firebase Authentication hesabına taşı.
+    const kimlikBilgisi = await auth.createUserWithEmailAndPassword(sahteEposta(kullaniciId), sifre);
+    await ref.set({ uid: kimlikBilgisi.user.uid }, { merge: true });
+    await oturumYenile(kimlikBilgisi.user); // doküman az önce güncellendi, oturumu hemen doğru bilgiyle tazele
     ekranGoster(ekranAna);
   } catch(e){
     console.error(e);
-    hata.textContent = 'Firebase bağlantı hatası. Ayarları kontrol et.';
+    hata.textContent = 'Giriş yapılamadı. Ayarları kontrol et.';
   }
 }
 document.getElementById('btnGirisYap').onclick = girisYap;
 document.getElementById('girisSifre').addEventListener('keydown', (e) => { if(e.key === 'Enter') girisYap(); });
 document.getElementById('kayitSifreTekrar').addEventListener('keydown', (e) => { if(e.key === 'Enter') kayitOl(); });
 
-/* ---- Oturum yönetimi (sessionStorage) ---- */
-function oturumKaydet(oturum){
-  sessionStorage.setItem('corbaOturum', JSON.stringify(oturum));
-}
+/* ---- Oturum yönetimi: artık GERÇEK Firebase Authentication kaynaklı ----
+   aktifOturum SADECE auth.onAuthStateChanged tarafından güncellenir; bu yüzden
+   tarayıcı konsolundan "ben adminim" diye sahte bir durum yazmak artık işe
+   yaramıyor — gerçek yazma işlemleri Firestore kurallarında request.auth ile
+   (yani gerçek, sahtesi yapılamayan bir kimlikle) doğrulanıyor. */
+let aktifOturum = null; // { kullaniciAdi, admin, kullaniciId, uid } ya da null
+let ilkOturumKontrolTamam = false;
+
 function oturumGetir(){
-  try{ return JSON.parse(sessionStorage.getItem('corbaOturum')); } catch(e){ return null; }
+  return aktifOturum;
 }
 function oturumSil(){
-  sessionStorage.removeItem('corbaOturum');
+  return auth.signOut();
+}
+
+/* aktifOturum'u verilen Firebase Auth kullanıcısına göre (Firestore'dan okuyarak) tazeler.
+   Hem otomatik dinleyici (aşağıda) hem de kayıt/giriş akışları BİLEREK bunu doğrudan
+   çağırıyor — çünkü "hesap dokümanını yaz" ile "auth girişi algıla" arasında küçük bir
+   yarış durumu olabiliyor (ör. admin kaydolurken, doküman henüz yazılmadan oturum
+   dinleyicisi tetiklenip "admin değil" gibi görünebiliyordu). Fonksiyon idempotent
+   olduğu için iki kez çağrılması sorun değil. */
+async function oturumYenile(user){
+  if(user){
+    const kullaniciId = kullaniciIdDenEposta(user.email);
+    try{
+      const snap = await db.collection('kullanicilar').doc(kullaniciId).get();
+      const veri = snap.exists ? snap.data() : {};
+      aktifOturum = {
+        kullaniciAdi: veri.kullaniciAdi || kullaniciId,
+        admin: !!veri.admin,
+        kullaniciId: kullaniciId,
+        uid: user.uid
+      };
+    } catch(e){
+      console.error('Kullanıcı bilgisi okunamadı:', e);
+      aktifOturum = { kullaniciAdi: kullaniciId, admin: false, kullaniciId: kullaniciId, uid: user.uid };
+    }
+  } else {
+    aktifOturum = null;
+    yonetimPaneliKapat();
+    divanPanelKapat();
+  }
+  hesapBariYenile();
+}
+
+auth.onAuthStateChanged(async (user) => {
+  await oturumYenile(user);
+  if(!ilkOturumKontrolTamam){
+    ilkOturumKontrolTamam = true;
+    acilisEkraniniGoster();
+  }
+});
+
+function acilisEkraniniGoster(){
+  if(tanitimGorulduMu()){
+    ekranGoster(ekranAna);
+  } else {
+    ekranGoster(ekranTanitim);
+    tanitimGoster(0);
+  }
 }
 
 /* ---- Ana sayfa sağ üst hesap çubuğu ---- */
@@ -1793,14 +1894,13 @@ function hesapBariYenile(){
     yonetimPaneliKapat();
   }
 }
-btnGirisDurum.onclick = () => {
+btnGirisDurum.onclick = async () => {
   const oturum = oturumGetir();
   if(oturum){
     if(confirm('Çıkış yapmak istediğine emin misin?')){
-      oturumSil();
+      await oturumSil();
       yonetimPaneliKapat();
       divanPanelKapat();
-      hesapBariYenile();
       ekranGoster(ekranAna);
     }
   } else {
@@ -1813,11 +1913,10 @@ btnGirisDurum.onclick = () => {
 };
 btnPanelGit.onclick = () => yonetimPaneliAc();
 
-document.getElementById('btnAdminCikis').onclick = () => {
+document.getElementById('btnAdminCikis').onclick = async () => {
   if(confirm('Çıkış yapmak istediğine emin misin?')){
-    oturumSil();
+    await oturumSil();
     yonetimPaneliKapat();
-    hesapBariYenile();
     ekranGoster(ekranAna);
   }
 };
@@ -2025,6 +2124,7 @@ function odulSayfaSifirlaVeYukle(){
   odulSayfaNo = 1;
   odulleriYukle();
 }
+document.getElementById('btnHaftaOduluHesapla').onclick = adminHaftaninOduluHesaplaVeAta;
 
 async function odulleriYukle(cursorIleri){
   const ul = document.getElementById('adminOdulListe');
@@ -2181,6 +2281,7 @@ async function sohbetMesajGonder(metinHam, girdiEl){
 
   try{
     await db.collection(SOHBET_KOLEKSIYON).add({
+      uid: oturum.uid,
       kullaniciId: kullaniciAdiNormallestir(oturum.kullaniciAdi),
       kullaniciAdi: oturum.kullaniciAdi,
       admin: !!oturum.admin,
@@ -2432,18 +2533,19 @@ document.getElementById('btnSifreDegistir').onclick = async () => {
 
   try{
     const kullaniciId = kullaniciAdiNormallestir(oturum.kullaniciAdi);
-    const ref = db.collection('kullanicilar').doc(kullaniciId);
-    const gizliRef = ref.collection('gizli').doc('veri');
-    const gizliSnap = await gizliRef.get();
-    const anaSnap = await ref.get();
-    const mevcutDogruHash = gizliSnap.exists ? gizliSnap.data().sifreHash : (anaSnap.exists ? anaSnap.data().sifreHash : null);
-    const girilenHash = await sha256Hex(mevcut);
-    if(!mevcutDogruHash || girilenHash !== mevcutDogruHash){
+    const kullanici = auth.currentUser;
+    if(!kullanici){ mesaj.textContent = 'Oturumun düşmüş, tekrar giriş yap.'; return; }
+
+    // Firebase Authentication'da şifre değiştirmeden önce "yeniden kimlik doğrulama" zorunlu
+    const kimlikBilgisi = firebase.auth.EmailAuthProvider.credential(sahteEposta(kullaniciId), mevcut);
+    try{
+      await kullanici.reauthenticateWithCredential(kimlikBilgisi);
+    } catch(e){
       mesaj.textContent = 'Mevcut şifre yanlış.';
       return;
     }
-    const yeniHash = await sha256Hex(yeni);
-    await gizliRef.set({ sifreHash: yeniHash });
+
+    await kullanici.updatePassword(yeni);
     mesaj.style.color = 'var(--yesil)';
     mesaj.textContent = 'Şifren güncellendi.';
     document.getElementById('mevcutSifre').value = '';
@@ -2505,6 +2607,7 @@ async function dmGonder(){
   try{
     await db.collection('ozelMesajlar').add({
       threadId: dmHedefId,
+      gonderenUid: oturum.uid,
       gonderenTipi: oturum.admin ? 'admin' : 'kullanici',
       gonderenAd: oturum.kullaniciAdi,
       metin: metin,
@@ -2520,14 +2623,9 @@ dmGirdi.addEventListener('keydown', (e) => { if(e.key === 'Enter') dmGonder(); }
 
 /* =========================================================
    AÇILIŞ
+   Not: açılış ekranı artık yukarıdaki auth.onAuthStateChanged içinde,
+   oturum durumu netleşir netleşmez gösteriliyor (acilisEkraniniGoster).
    ========================================================= */
-hesapBariYenile();
-if(tanitimGorulduMu()){
-  ekranGoster(ekranAna);
-} else {
-  ekranGoster(ekranTanitim);
-  tanitimGoster(0);
-}
 </script>
 
 </body>
