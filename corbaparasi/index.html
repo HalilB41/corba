@@ -869,6 +869,23 @@
       <div class="admin-hata" id="kayitHata"></div>
       <div class="geri-link" id="linkGirisGoster">Zaten hesabın var mı? Giriş yap ›</div>
     </div>
+
+    <!-- ESKİ HESAP GÖÇÜ: şifre doğru ama Firebase artık en az 6 karakter istiyor -->
+    <div id="gocSifreGoster" class="gizli">
+      <div style="text-align:center;font-size:40px;margin-bottom:6px;">🔧</div>
+      <h2>Hesabını Güncelleyelim</h2>
+      <div class="admin-alt">Şifren doğru! Ama bu, sitenin yeni (daha güvenli) giriş sistemine ilk girişin — ve Firebase en az 6 karakterlik bir şifre istiyor. Aşağıya en az 6 karakterlik yeni bir şifre belirle, hesabın onunla güncellensin.</div>
+      <div class="alan">
+        <label>Yeni şifre (en az 6 karakter)</label>
+        <div class="girdi-sarma"><input type="password" id="gocYeniSifre" autocomplete="new-password"></div>
+      </div>
+      <div class="alan">
+        <label>Yeni şifre (tekrar)</label>
+        <div class="girdi-sarma"><input type="password" id="gocYeniSifreTekrar" autocomplete="new-password"></div>
+      </div>
+      <button class="btn-olustur" id="btnGocSifreOnayla">ŞİFREYİ GÜNCELLE VE GİRİŞ YAP</button>
+      <div class="admin-hata" id="gocHata"></div>
+    </div>
   </div>
 
 </div>
@@ -1694,8 +1711,8 @@ async function kayitOl(){
     hata.textContent = 'Kullanıcı adı 3-20 karakter olmalı, sadece harf/rakam/alt çizgi içerebilir (link/görsel adresi yazamazsın).';
     return;
   }
-  if(sifre.length < 4){
-    hata.textContent = 'Şifre en az 4 karakter olmalı.';
+  if(sifre.length < 6){
+    hata.textContent = 'Şifre en az 6 karakter olmalı (Firebase Authentication şartı).';
     return;
   }
   if(sifre !== sifreTekrar){
@@ -1776,8 +1793,25 @@ async function girisYap(){
     ekranGoster(ekranAna);
     return;
   } catch(e){
-    if(e.code !== 'auth/user-not-found'){
+    console.error('Giriş hatası (auth):', e.code, e.message);
+    if(e.code === 'auth/wrong-password' || e.code === 'auth/invalid-credential' || e.code === 'auth/invalid-login-credentials'){
       hata.textContent = 'Kullanıcı adı veya şifre yanlış.';
+      return;
+    }
+    if(e.code === 'auth/operation-not-allowed'){
+      hata.textContent = 'Giriş şu an kapalı: Firebase Console > Authentication > Sign-in method kısmında "Email/Password" sağlayıcısı açık değil.';
+      return;
+    }
+    if(e.code === 'auth/too-many-requests'){
+      hata.textContent = 'Çok fazla yanlış deneme oldu, biraz sonra tekrar dene.';
+      return;
+    }
+    if(e.code === 'auth/network-request-failed'){
+      hata.textContent = 'Ağ hatası, internet bağlantını kontrol et.';
+      return;
+    }
+    if(e.code !== 'auth/user-not-found'){
+      hata.textContent = `Giriş yapılamadı (${e.code || 'bilinmeyen hata'}).`;
       return;
     }
     // Bu hesap henüz Firebase Authentication'a göçmemiş olabilir (eski usül hesap).
@@ -1804,19 +1838,64 @@ async function girisYap(){
       return;
     }
 
-    // Şifre doğru: eski hesabı gerçek Firebase Authentication hesabına taşı.
-    const kimlikBilgisi = await auth.createUserWithEmailAndPassword(sahteEposta(kullaniciId), sifre);
-    await ref.set({ uid: kimlikBilgisi.user.uid }, { merge: true });
-    await oturumYenile(kimlikBilgisi.user); // doküman az önce güncellendi, oturumu hemen doğru bilgiyle tazele
-    ekranGoster(ekranAna);
+    // Şifre doğru: eski hesabı gerçek Firebase Authentication hesabına taşımayı dene.
+    try{
+      const kimlikBilgisi = await auth.createUserWithEmailAndPassword(sahteEposta(kullaniciId), sifre);
+      await ref.set({ uid: kimlikBilgisi.user.uid }, { merge: true });
+      await oturumYenile(kimlikBilgisi.user); // doküman az önce güncellendi, oturumu hemen doğru bilgiyle tazele
+      ekranGoster(ekranAna);
+    } catch(gocHatasi){
+      if(gocHatasi.code === 'auth/weak-password'){
+        // Eski şifre doğruydu ama Firebase artık en az 6 karakter istiyor.
+        // Kullanıcıdan yeni (yeterince uzun) bir şifre isteyip göçü onunla tamamlayacağız.
+        gocBekleyenKullaniciId = kullaniciId;
+        girisGoster.classList.add('gizli');
+        kayitGoster.classList.add('gizli');
+        document.getElementById('gocSifreGoster').classList.remove('gizli');
+        document.getElementById('gocHata').textContent = '';
+        return;
+      }
+      throw gocHatasi; // başka bir hata ise dış catch'e devret
+    }
   } catch(e){
-    console.error(e);
-    hata.textContent = 'Giriş yapılamadı. Ayarları kontrol et.';
+    console.error('Giriş hatası (göç):', e.code, e.message);
+    if(e.code === 'auth/operation-not-allowed'){
+      hata.textContent = 'Giriş şu an kapalı: Firebase Console > Authentication > Sign-in method kısmında "Email/Password" sağlayıcısı açık değil.';
+    } else {
+      hata.textContent = `Giriş yapılamadı (${e.code || 'bilinmeyen hata'}).`;
+    }
   }
 }
 document.getElementById('btnGirisYap').onclick = girisYap;
 document.getElementById('girisSifre').addEventListener('keydown', (e) => { if(e.key === 'Enter') girisYap(); });
 document.getElementById('kayitSifreTekrar').addEventListener('keydown', (e) => { if(e.key === 'Enter') kayitOl(); });
+
+/* ---- Eski hesap göçü: Firebase'in 6 karakter şartı için yeni şifre belirleme ---- */
+let gocBekleyenKullaniciId = null;
+async function gocSifreOnayla(){
+  const hata = document.getElementById('gocHata');
+  hata.textContent = '';
+  const yeni = document.getElementById('gocYeniSifre').value;
+  const yeniTekrar = document.getElementById('gocYeniSifreTekrar').value;
+
+  if(!gocBekleyenKullaniciId){ hata.textContent = 'Bir şeyler ters gitti, sayfayı yenileyip tekrar dene.'; return; }
+  if(yeni.length < 6){ hata.textContent = 'Yeni şifre en az 6 karakter olmalı.'; return; }
+  if(yeni !== yeniTekrar){ hata.textContent = 'Şifreler birbiriyle uyuşmuyor.'; return; }
+
+  try{
+    const kimlikBilgisi = await auth.createUserWithEmailAndPassword(sahteEposta(gocBekleyenKullaniciId), yeni);
+    await db.collection('kullanicilar').doc(gocBekleyenKullaniciId).set({ uid: kimlikBilgisi.user.uid }, { merge: true });
+    await oturumYenile(kimlikBilgisi.user);
+    gocBekleyenKullaniciId = null;
+    document.getElementById('gocSifreGoster').classList.add('gizli');
+    ekranGoster(ekranAna);
+  } catch(e){
+    console.error('Göç şifre güncelleme hatası:', e.code, e.message);
+    hata.textContent = `Şifre güncellenemedi (${e.code || 'bilinmeyen hata'}).`;
+  }
+}
+document.getElementById('btnGocSifreOnayla').onclick = gocSifreOnayla;
+document.getElementById('gocYeniSifreTekrar').addEventListener('keydown', (e) => { if(e.key === 'Enter') gocSifreOnayla(); });
 
 /* ---- Oturum yönetimi: artık GERÇEK Firebase Authentication kaynaklı ----
    aktifOturum SADECE auth.onAuthStateChanged tarafından güncellenir; bu yüzden
@@ -2528,7 +2607,7 @@ document.getElementById('btnSifreDegistir').onclick = async () => {
   const yeni = document.getElementById('yeniSifre').value;
   const yeniTekrar = document.getElementById('yeniSifreTekrar').value;
 
-  if(yeni.length < 4){ mesaj.textContent = 'Yeni şifre en az 4 karakter olmalı.'; return; }
+  if(yeni.length < 6){ mesaj.textContent = 'Yeni şifre en az 6 karakter olmalı (Firebase Authentication şartı).'; return; }
   if(yeni !== yeniTekrar){ mesaj.textContent = 'Yeni şifreler uyuşmuyor.'; return; }
 
   try{
@@ -2575,24 +2654,38 @@ function dmModalAc(hedefKullaniciId, hedefAd){
   dmMesajlar.innerHTML = '<div class="admin-yukleniyor">Yükleniyor...</div>';
 
   if(dmDinleyici) dmDinleyici();
+  // Not: burada BİLEREK Firestore sorgusunda orderBy KULLANMIYORUZ — where()+orderBy() farklı
+  // alanlarda birleşince Firestore'un "composite index" (bileşik indeks) istemesi gerekiyor, bu da
+  // ilk seferinde Firebase Console'da elle bir indeks oluşturmadan sorguyu başarısız kılıyordu.
+  // Bunun yerine sonuçları burada, JavaScript tarafında tarihe göre sıralıyoruz.
   dmDinleyici = db.collection('ozelMesajlar')
     .where('threadId', '==', hedefKullaniciId)
-    .orderBy('tarih', 'asc')
     .limit(200)
     .onSnapshot(snap => {
       const oturumSimdi = oturumGetir();
       const benKimim = oturumSimdi && oturumSimdi.admin ? 'admin' : 'kullanici';
-      dmMesajlar.innerHTML = snap.docs.map(doc => {
-        const m = doc.data();
+      const mesajlar = snap.docs.map(doc => doc.data());
+      mesajlar.sort((a, b) => {
+        const at = a.tarih && a.tarih.toMillis ? a.tarih.toMillis() : 0;
+        const bt = b.tarih && b.tarih.toMillis ? b.tarih.toMillis() : 0;
+        return at - bt;
+      });
+      dmMesajlar.innerHTML = mesajlar.map(m => {
         const benMi = m.gonderenTipi === benKimim;
         const zaman = m.tarih && m.tarih.toDate ? m.tarih.toDate().toLocaleString('tr-TR', {day:'2-digit', month:'2-digit', hour:'2-digit', minute:'2-digit'}) : '';
         return `<div class="dm-mesaj ${benMi ? 'ben' : ''}">
           <div class="balon">${escapeHtml(m.metin)}</div>
           <div class="zaman">${m.gonderenTipi === 'admin' ? '👑 admin' : '@' + escapeHtml(m.gonderenAd || '')} · ${zaman}</div>
         </div>`;
-      }).join('') || '<div style="text-align:center;color:var(--gri);font-size:11px;padding:14px;">Henüz mesaj yok.</div>';
+      }).join('') || '<div style="text-align:center;color:var(--gri);font-size:11px;padding:14px;">Henüz mesaj yok, ilk mesajı sen yaz!</div>';
       dmMesajlar.scrollTop = dmMesajlar.scrollHeight;
-    }, err => console.error('DM dinlenemedi:', err));
+    }, err => {
+      console.error('DM dinlenemedi:', err.code, err.message);
+      dmMesajlar.innerHTML = `<div style="text-align:center;color:var(--kirmizi);font-size:11.5px;padding:14px;">
+        Mesajlar yüklenemedi (${escapeHtml(err.code || 'bilinmeyen hata')}).<br>
+        Tarayıcı konsolunu (F12) açıp tam hatayı kontrol et — Firestore "indeks oluştur" linki veriyorsa ona tıklaman yeterli olabilir.
+      </div>`;
+    });
 }
 document.getElementById('btnDmKapat').onclick = () => {
   dmModal.classList.add('gizli');
