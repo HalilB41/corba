@@ -176,6 +176,21 @@
     color: var(--corba-koyu);
     letter-spacing: 1px;
   }
+  .liderlik-sayac{
+    text-align:center; font-size:10.5px; color:var(--gri); margin:-6px 0 12px;
+    letter-spacing:0.3px;
+  }
+  .liderlik-sayac b{ color:var(--corba-koyu); }
+
+  /* --- Duyuru kutusu (ana sayfa) --- */
+  .duyuru-kutusu{
+    margin-top:20px; background: rgba(193,68,14,0.08); border-left:3px solid var(--corba);
+    border-radius:6px; padding:12px 14px; text-align:left;
+  }
+  .duyuru-kutusu h4{ margin:0 0 6px; font-size:11px; letter-spacing:1px; color:var(--corba-koyu); }
+  .duyuru-satir{ font-size:12px; line-height:1.6; padding:6px 0; border-bottom:1px dotted var(--kagit-koyu); }
+  .duyuru-satir:last-child{ border-bottom:none; }
+  .duyuru-satir .duyuru-zaman{ display:block; font-size:9.5px; color:var(--gri); margin-top:2px; }
   .liderlik-liste {
     list-style: none;
     padding: 0;
@@ -539,6 +554,19 @@
   }
   .yonetim-alt{ font-size:11px; color:var(--gri); margin-bottom:10px; }
 
+  /* --- Yönetim paneli sekmeleri --- */
+  .admin-sekme-basliklari{
+    display:flex; flex-wrap:wrap; gap:5px; margin: 14px 0 18px;
+    border-bottom: 2px dashed var(--kagit-koyu); padding-bottom: 14px;
+  }
+  .admin-sekme-btn{
+    flex: 1 1 auto; padding:8px 7px; border:none; border-radius:16px; background:var(--kagit-koyu);
+    font-family:inherit; font-size:10.5px; font-weight:700; color:var(--murekkep); cursor:pointer;
+    white-space:nowrap;
+  }
+  .admin-sekme-btn.aktif{ background:var(--corba); color:#fff; }
+  .admin-sekme-icerik h3{ font-size:13px; letter-spacing:1px; color:var(--corba-koyu); margin:0 0 10px; }
+
   /* ---------- ÇORBACI DİVANI (canlı sohbet) ---------- */
   .divan-buton{
     position:fixed; bottom:18px; right:18px; z-index:30;
@@ -684,9 +712,16 @@
     <button class="btn-ana" id="btnBaslat">🍲 ÇORBA FİŞİ ÜRET</button>
     <div class="alt-uyari">*Yatırım tavsiyesi değildir. Tavsiye çorbadır.</div>
 
+    <!-- DUYURULAR (admin panelinden yayınlanır) -->
+    <div class="duyuru-kutusu gizli" id="duyuruKutusu">
+      <h4>📢 DUYURULAR</h4>
+      <div id="duyuruIcerik"></div>
+    </div>
+
     <!-- LİDERLİK TABLOSU (haftalık, en az kârdan en çok kâra sıralı) -->
     <div class="liderlik-kutu">
       <h3>🏆 HAFTANIN ÇORBACILARI</h3>
+      <div class="liderlik-sayac" id="liderlikSayac">⏱️ yükleniyor...</div>
       <ul class="liderlik-liste" id="liderListeUI">
         <li class="admin-yukleniyor">Yükleniyor...</li>
       </ul>
@@ -899,65 +934,84 @@
   </div>
   <div class="yonetim-alt" id="yonetimHosgeldin">hoş geldin, admin 🍲</div>
 
-  <!-- 1) SİTE AYARLARI -->
-  <div class="admin-bolum" style="margin-top:10px;">
-    <h3>⚙️ SİTE AYARLARI</h3>
-
-    <div style="margin-bottom:18px;">
-      <b style="font-size:11.5px;color:var(--murekkep);">🍜 Çorbalar (ve ekmek eşiği)</b>
-      <div class="admin-not">En düşük fiyatlı çorbanın altındaki kazançlara otomatik olarak 15₺'lik beyaz ekmek verilir. Bir tutar, "net kâr &lt; eşik" olan en düşük eşikli dilime düşer. En üst dilim kutucuğu işaretlenirse eşik uygulanmaz.</div>
-      <ul class="admin-liste" id="adminCorbaListe" style="margin-top:8px;"><li class="admin-yukleniyor">Yükleniyor...</li></ul>
-      <div class="admin-ekle-form">
-        <input type="text" id="yeniCorbaAd" placeholder="Çorba adı (ör. Domates)">
-        <input type="number" id="yeniCorbaFiyat" placeholder="Fiyat ₺" min="0" step="0.01">
-        <input type="number" id="yeniCorbaEsik" placeholder="Eşik net kâr (₺)" min="0" step="1">
-        <label class="check"><input type="checkbox" id="yeniCorbaSonsuz"> En üst dilim (eşiği yok say)</label>
-      </div>
-      <button class="btn-admin-ekle" id="btnCorbaEkle">+ ÇORBA EKLE</button>
-    </div>
-
-    <div>
-      <b style="font-size:11.5px;color:var(--murekkep);">📈 Halka Arzlar (Hisseler)</b>
-      <ul class="admin-liste" id="adminHalkaArzListe" style="margin-top:8px;"><li class="admin-yukleniyor">Yükleniyor...</li></ul>
-      <div class="admin-ekle-form">
-        <input type="text" id="yeniHalkaArz" placeholder="Halka arz / hisse adı (ör. Tarhana A.Ş.)">
-      </div>
-      <button class="btn-admin-ekle" id="btnHalkaArzEkle">+ HALKA ARZ EKLE</button>
-    </div>
-
-    <div style="margin-top:18px;">
-      <b style="font-size:11.5px;color:var(--murekkep);">🏆 Liderlik Tablosu</b>
-      <div class="admin-not" id="adminHaftaBilgi">Bu haftanın kaydı: —</div>
-      <button class="btn-admin-sifirla" id="btnHaftaSifirla" style="margin-top:10px;">HAFTAYI ŞİMDİ SIFIRLA</button>
-      <div class="admin-not">Normalde tablo her hafta otomatik sıfırlanır (hafta numarasına göre). Bu buton tüm geçmiş kayıtları kalıcı olarak siler.</div>
-    </div>
+  <div class="admin-sekme-basliklari">
+    <button class="admin-sekme-btn aktif" data-asek="corbalar">🍜 Çorbalar</button>
+    <button class="admin-sekme-btn" data-asek="halkaarz">📈 Halka Arzlar</button>
+    <button class="admin-sekme-btn" data-asek="kullanicilar">👥 Kullanıcılar</button>
+    <button class="admin-sekme-btn" data-asek="oduller">🏆 Ödüller</button>
+    <button class="admin-sekme-btn" data-asek="duyurular">📢 Duyurular</button>
+    <button class="admin-sekme-btn" data-asek="sohbet">💬 Sohbet</button>
   </div>
 
-  <!-- 2) KULLANICILAR -->
-  <div class="admin-bolum">
+  <!-- 🍜 ÇORBALAR -->
+  <div class="admin-sekme-icerik" id="aSekCorbalar">
+    <h3>🍜 ÇORBALAR (ve ekmek eşiği)</h3>
+    <div class="admin-not">En düşük fiyatlı çorbanın altındaki kazançlara otomatik olarak 15₺'lik beyaz ekmek verilir. Bir tutar, "net kâr &lt; eşik" olan en düşük eşikli dilime düşer. En üst dilim kutucuğu işaretlenirse eşik uygulanmaz.</div>
+    <ul class="admin-liste" id="adminCorbaListe" style="margin-top:8px;"><li class="admin-yukleniyor">Yükleniyor...</li></ul>
+    <div class="admin-ekle-form">
+      <input type="text" id="yeniCorbaAd" placeholder="Çorba adı (ör. Domates)">
+      <input type="number" id="yeniCorbaFiyat" placeholder="Fiyat ₺" min="0" step="0.01">
+      <input type="number" id="yeniCorbaEsik" placeholder="Eşik net kâr (₺)" min="0" step="1">
+      <label class="check"><input type="checkbox" id="yeniCorbaSonsuz"> En üst dilim (eşiği yok say)</label>
+    </div>
+    <button class="btn-admin-ekle" id="btnCorbaEkle">+ ÇORBA EKLE</button>
+  </div>
+
+  <!-- 📈 HALKA ARZLAR -->
+  <div class="admin-sekme-icerik gizli" id="aSekHalkaArz">
+    <h3>📈 HALKA ARZLAR (Hisseler)</h3>
+    <ul class="admin-liste" id="adminHalkaArzListe"><li class="admin-yukleniyor">Yükleniyor...</li></ul>
+    <div class="admin-ekle-form">
+      <input type="text" id="yeniHalkaArz" placeholder="Halka arz / hisse adı (ör. Tarhana A.Ş.)">
+    </div>
+    <button class="btn-admin-ekle" id="btnHalkaArzEkle">+ HALKA ARZ EKLE</button>
+  </div>
+
+  <!-- 👥 KULLANICILAR -->
+  <div class="admin-sekme-icerik gizli" id="aSekKullanicilar">
     <h3>👥 KULLANICILAR</h3>
-    <ul class="admin-liste" id="adminKullaniciListe"><li class="admin-yukleniyor">Yükleniyor...</li></ul>
+    <div class="admin-not">Kayıtlı herkesin kullanıcı adı, iletişim bilgisi (e-posta/Twitter) ve ödül sayısı burada.</div>
+    <ul class="admin-liste" id="adminKullaniciListe" style="margin-top:8px;"><li class="admin-yukleniyor">Yükleniyor...</li></ul>
     <div class="sayfalama-satir">
       <button id="btnKullaniciOnceki" disabled>‹ Önceki</button>
       <button id="btnKullaniciSonraki">Sonraki ›</button>
     </div>
     <div class="sayfalama-bilgi" id="kullaniciSayfaBilgi"></div>
+  </div>
 
-    <div style="margin-top:20px;">
-      <b style="font-size:11.5px;color:var(--murekkep);">🏆 Ödül Paneli (haftalık kazananlar)</b>
-      <div class="admin-not">Güvenlik nedeniyle bu artık otomatik olmuyor: bu haftanın liderini ödül listesine işlemek için butona bas.</div>
-      <button class="btn-admin-ekle" id="btnHaftaOduluHesapla" style="margin-top:6px;">🏆 BU HAFTANIN ÖDÜLÜNÜ HESAPLA</button>
-      <ul class="admin-liste" id="adminOdulListe" style="margin-top:8px;"><li class="admin-yukleniyor">Yükleniyor...</li></ul>
-      <div class="sayfalama-satir">
-        <button id="btnOdulOnceki" disabled>‹ Önceki</button>
-        <button id="btnOdulSonraki">Sonraki ›</button>
-      </div>
-      <div class="sayfalama-bilgi" id="odulSayfaBilgi"></div>
+  <!-- 🏆 ÖDÜLLER -->
+  <div class="admin-sekme-icerik gizli" id="aSekOduller">
+    <h3>🏆 ÖDÜLLER</h3>
+    <div class="admin-not" id="adminHaftaBilgi">Bu haftanın kaydı: —</div>
+    <div class="admin-not">Güvenlik nedeniyle bu otomatik olmuyor: bu haftanın liderini ödül listesine işlemek için butona bas.</div>
+    <button class="btn-admin-ekle" id="btnHaftaOduluHesapla" style="margin-top:6px;">🏆 BU HAFTANIN ÖDÜLÜNÜ HESAPLA</button>
+    <ul class="admin-liste" id="adminOdulListe" style="margin-top:12px;"><li class="admin-yukleniyor">Yükleniyor...</li></ul>
+    <div class="sayfalama-satir">
+      <button id="btnOdulOnceki" disabled>‹ Önceki</button>
+      <button id="btnOdulSonraki">Sonraki ›</button>
+    </div>
+    <div class="sayfalama-bilgi" id="odulSayfaBilgi"></div>
+
+    <div style="margin-top:22px; padding-top:16px; border-top:2px dashed var(--kagit-koyu);">
+      <b style="font-size:11.5px;color:var(--murekkep);">⚠️ Tehlikeli Alan</b>
+      <div class="admin-not">Liderlik tablosu, hafta değişince (Pazar 23:59'da) zaten kendiliğinden yenilenir — bunun için bir şey yapmana gerek yok. Aşağıdaki buton ise tüm geçmiş kayıtları KALICI olarak siler, sadece istersen kullan.</div>
+      <button class="btn-admin-sifirla" id="btnHaftaSifirla" style="margin-top:10px;">HAFTAYI ŞİMDİ SIFIRLA (geçmişi tamamen sil)</button>
     </div>
   </div>
 
-  <!-- 3) SOHBET (Çorbacı Divanı - moderasyon görünümü) -->
-  <div class="admin-bolum mini-sohbet">
+  <!-- 📢 DUYURULAR -->
+  <div class="admin-sekme-icerik gizli" id="aSekDuyurular">
+    <h3>📢 DUYURULAR</h3>
+    <div class="admin-not">Buradan yayınladığın duyuru, ana sayfada herkese görünür.</div>
+    <div class="alan" style="margin-top:10px;">
+      <textarea id="yeniDuyuruMetin" maxlength="300" placeholder="Duyuru metni (en fazla 300 karakter)..."></textarea>
+    </div>
+    <button class="btn-admin-ekle" id="btnDuyuruYayinla">📢 DUYURUYU YAYINLA</button>
+    <ul class="admin-liste" id="adminDuyuruListe" style="margin-top:16px;"><li class="admin-yukleniyor">Yükleniyor...</li></ul>
+  </div>
+
+  <!-- 💬 SOHBET (Çorbacı Divanı - moderasyon görünümü) -->
+  <div class="admin-sekme-icerik gizli mini-sohbet" id="aSekSohbet">
     <h3>💬 SOHBET (Çorbacı Divanı)</h3>
     <div class="admin-not">Buradan da mesaj atabilir, moderasyon yapabilirsin. "/sil" tüm mesajları, "/sil 5" son 5 mesajı siler.</div>
     <div class="divan-mesajlar" id="adminSohbetMesajlar" style="margin-top:8px;"></div>
@@ -1304,10 +1358,39 @@ async function skoruKaydet(kayit) {
   }
 }
 
-// Sayfa açıldığında tabloyu doldur
+// Sayfa açıldığında tabloyu ve duyuruları doldur
 ilkKurulumuYap().then(() => {
   tabloyuGuncelle();
+  anaSayfaDuyurulariYukle();
 });
+
+/* ---------- Liderlik tablosu sayacı: her Pazar 23:59'da hafta değişir ----------
+   Not: bu SADECE görsel bir sayaçtır — tablo zaten her hafta otomatik olarak
+   o haftanın kayıtlarını gösterir (haftaId değiştiği an). Eski haftaların
+   kayıtlarını KALICI silmek ve ödülü hesaba işlemek hâlâ admin'in elle
+   yapması gereken, güvenlik gereği bilerek otomatikleştirilmemiş iki ayrı işlem. */
+function haftaSonunaKalanMs(){
+  const simdi = new Date();
+  const gun = simdi.getDay(); // 0=Pazar, 1=Pazartesi, ... 6=Cumartesi
+  const pazaraKalanGun = (7 - gun) % 7;
+  const buPazar = new Date(simdi.getFullYear(), simdi.getMonth(), simdi.getDate() + pazaraKalanGun, 23, 59, 59, 999);
+  return Math.max(0, buPazar - simdi);
+}
+function liderlikSayaciniGuncelle(){
+  const el = document.getElementById('liderlikSayac');
+  if(!el) return;
+  const kalanMs = haftaSonunaKalanMs();
+  const gunler = Math.floor(kalanMs / 86400000);
+  const saatler = Math.floor((kalanMs % 86400000) / 3600000);
+  const dakikalar = Math.floor((kalanMs % 3600000) / 60000);
+  let metin;
+  if(gunler > 0) metin = `<b>${gunler} gün ${saatler} saat</b> kaldı`;
+  else if(saatler > 0) metin = `<b>${saatler} saat ${dakikalar} dakika</b> kaldı`;
+  else metin = `<b>${dakikalar} dakika</b> kaldı`;
+  el.innerHTML = `⏱️ Bu haftanın yarışı bitmesine ${metin} (her Pazar 23:59)`;
+}
+liderlikSayaciniGuncelle();
+setInterval(liderlikSayaciniGuncelle, 30000);
 
 /* ---------- Para Yağmuru Simülasyonu ---------- */
 function paraYagdir() {
@@ -2013,12 +2096,14 @@ function yonetimPaneliAc(){
   yonetimPaneli.classList.add('acik');
   panelArkaplan.classList.add('acik');
   document.body.classList.add('panel-acik');
+  adminSekmeGoster('corbalar'); // panel her açıldığında ilk sekmeden başla
   ilkKurulumuYap().then(() => {
     adminCorbalariGoster();
     adminHalkaArzlariGoster();
     adminHaftaBilgiGoster();
     kullaniciSayfaSifirlaVeYukle();
     odulSayfaSifirlaVeYukle();
+    adminDuyurulariGoster();
     sohbetDinlemeyeBasla();
   });
 }
@@ -2027,6 +2112,20 @@ function yonetimPaneliKapat(){
   panelArkaplan.classList.remove('acik');
   document.body.classList.remove('panel-acik');
 }
+
+/* ---- Yönetim paneli sekmeleri ---- */
+const ADMIN_SEKME_ID_ESLEME = {
+  corbalar: 'aSekCorbalar', halkaarz: 'aSekHalkaArz', kullanicilar: 'aSekKullanicilar',
+  oduller: 'aSekOduller', duyurular: 'aSekDuyurular', sohbet: 'aSekSohbet'
+};
+function adminSekmeGoster(anahtar){
+  document.querySelectorAll('.admin-sekme-btn').forEach(b => b.classList.toggle('aktif', b.dataset.asek === anahtar));
+  Object.values(ADMIN_SEKME_ID_ESLEME).forEach(id => document.getElementById(id).classList.add('gizli'));
+  document.getElementById(ADMIN_SEKME_ID_ESLEME[anahtar]).classList.remove('gizli');
+}
+document.querySelectorAll('.admin-sekme-btn').forEach(btn => {
+  btn.onclick = () => adminSekmeGoster(btn.dataset.asek);
+});
 document.getElementById('btnPanelKapat').onclick = yonetimPaneliKapat;
 panelArkaplan.onclick = yonetimPaneliKapat;
 
@@ -2107,6 +2206,69 @@ document.getElementById('btnHalkaArzEkle').onclick = async () => {
   document.getElementById('yeniHalkaArz').value = '';
   adminHalkaArzlariGoster();
 };
+
+/* ---- Duyurular (admin panelinden yayınlanır, ana sayfada herkese görünür) ---- */
+document.getElementById('btnDuyuruYayinla').onclick = async () => {
+  const oturum = oturumGetir();
+  if(!oturum || !oturum.admin) return;
+  const alan = document.getElementById('yeniDuyuruMetin');
+  const metin = alan.value.trim().slice(0, 300);
+  if(!metin){ alert('Duyuru metni boş olamaz.'); return; }
+  try{
+    await db.collection('duyurular').add({
+      metin: metin,
+      yazanAdi: oturum.kullaniciAdi,
+      tarih: firebase.firestore.FieldValue.serverTimestamp()
+    });
+    alan.value = '';
+    adminDuyurulariGoster();
+  } catch(e){
+    console.error('Duyuru yayınlanamadı:', e);
+    alert('Duyuru yayınlanamadı, tekrar dene.');
+  }
+};
+
+async function adminDuyurulariGoster(){
+  const ul = document.getElementById('adminDuyuruListe');
+  try{
+    const snap = await db.collection('duyurular').orderBy('tarih', 'desc').limit(20).get();
+    if(snap.empty){ ul.innerHTML = '<li>Henüz duyuru yok.</li>'; return; }
+    ul.innerHTML = snap.docs.map(doc => {
+      const d = doc.data();
+      const zaman = d.tarih && d.tarih.toDate ? d.tarih.toDate().toLocaleDateString('tr-TR', {day:'2-digit', month:'2-digit', hour:'2-digit', minute:'2-digit'}) : '';
+      return `<li><span class="ad">${escapeHtml(d.metin)}<span class="kucuk-not">${zaman}</span></span><button class="admin-sil" data-id="${doc.id}">SİL</button></li>`;
+    }).join('');
+    ul.querySelectorAll('.admin-sil').forEach(btn => {
+      btn.onclick = async () => {
+        await db.collection('duyurular').doc(btn.dataset.id).delete();
+        adminDuyurulariGoster();
+      };
+    });
+  } catch(e){
+    console.error('Duyurular yüklenemedi:', e);
+    ul.innerHTML = '<li>Duyurular yüklenemedi.</li>';
+  }
+}
+
+/* Ana sayfadaki duyuru kutusunu doldurur (herkes görür, sadece okuma) */
+async function anaSayfaDuyurulariYukle(){
+  const kutu = document.getElementById('duyuruKutusu');
+  const ic = document.getElementById('duyuruIcerik');
+  if(!kutu || !ic) return;
+  try{
+    const snap = await db.collection('duyurular').orderBy('tarih', 'desc').limit(3).get();
+    if(snap.empty){ kutu.classList.add('gizli'); return; }
+    ic.innerHTML = snap.docs.map(doc => {
+      const d = doc.data();
+      const zaman = d.tarih && d.tarih.toDate ? d.tarih.toDate().toLocaleDateString('tr-TR', {day:'2-digit', month:'2-digit', hour:'2-digit', minute:'2-digit'}) : '';
+      return `<div class="duyuru-satir">${escapeHtml(d.metin)}<span class="duyuru-zaman">${zaman}</span></div>`;
+    }).join('');
+    kutu.classList.remove('gizli');
+  } catch(e){
+    console.error('Duyurular yüklenemedi:', e);
+    kutu.classList.add('gizli');
+  }
+}
 
 /* ---- Liderlik tablosu / haftalık sıfırlama ---- */
 async function adminHaftaBilgiGoster(){
